@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AC Race Engineer</title>
+<style>
+  :root{
+    --bg:#07090c; --panel:#0e1116; --panel2:#12161d; --line:#1e232c;
+    --txt:#e8ecf3; --dim:#79839a; --dim2:#4e5768;
+    --green:#22c55e; --red:#ef4444; --yellow:#eab308; --blue:#3b82f6;
+    --cyan:#06b6d4; --purple:#a855f7; --orange:#f97316;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Roboto Mono",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:var(--bg);color:var(--txt);overflow:hidden;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans JP",sans-serif;
+    font-variant-numeric:tabular-nums}
+  body{display:flex;flex-direction:column}
+
+  /* ---------- ヘッダー ---------- */
+  header{display:flex;align-items:center;gap:18px;padding:8px 14px;
+    background:var(--panel);border-bottom:1px solid var(--line);flex:0 0 auto}
+  header .brand{font-weight:800;letter-spacing:.14em;font-size:12px;color:var(--dim)}
+  header .id{font-size:15px;font-weight:700}
+  header .id span{color:var(--dim);font-weight:500;margin-left:8px;font-size:13px}
+  header .spacer{flex:1}
+  .hstat{font-size:12px;color:var(--dim);white-space:nowrap}
+  .hstat b{color:var(--txt);font-weight:700;font-size:13px;margin-left:5px}
+  #conn{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;letter-spacing:.1em}
+  #connDot{width:9px;height:9px;border-radius:50%;background:var(--red);
+    box-shadow:0 0 8px currentColor;color:var(--red)}
+  #connDot.ok{background:var(--green);color:var(--green)}
+  #flagBadge{padding:3px 10px;border-radius:5px;font-size:11px;font-weight:800;
+    letter-spacing:.1em;background:#1b2029;color:var(--dim)}
+
+  /* ---------- レイアウト ---------- */
+  main{flex:1;display:grid;grid-template-columns:270px 1fr 340px;
+    grid-template-rows:1fr auto;gap:8px;padding:8px;min-height:0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:9px 11px;min-height:0;display:flex;flex-direction:column}
+  .card > h2{font-size:10px;letter-spacing:.18em;color:var(--dim);font-weight:700;
+    margin-bottom:7px;flex:0 0 auto;text-transform:uppercase}
+  .colstack{display:flex;flex-direction:column;gap:8px;min-height:0}
+
+  /* ---------- タイミング ---------- */
+  .timeRow{display:flex;justify-content:space-between;align-items:baseline;
+    padding:4px 0;border-bottom:1px solid #171b22}
+  .timeRow:last-child{border-bottom:0}
+  .timeRow .k{font-size:10px;letter-spacing:.14em;color:var(--dim);font-weight:700}
+  .timeRow .v{font-family:var(--mono);font-size:19px;font-weight:700}
+  .v.purple{color:var(--purple)} .v.green{color:var(--green)} .v.cyan{color:var(--cyan)}
+
+  #deltaBig{font-family:var(--mono);font-size:40px;font-weight:800;text-align:center;
+    line-height:1;padding:6px 0 2px}
+  #deltaTrack{height:6px;background:#12161d;border-radius:3px;position:relative;overflow:hidden;margin-bottom:6px}
+  #deltaFill{position:absolute;top:0;bottom:0;left:50%;width:0;background:var(--green)}
+  #deltaTrack::after{content:'';position:absolute;left:50%;top:0;bottom:0;width:1px;background:#333c4a}
+
+  .kv{display:grid;grid-template-columns:1fr auto;gap:2px 8px;font-size:12px}
+  .kv .k{color:var(--dim)}
+  .kv .v{font-family:var(--mono);font-weight:700;text-align:right}
+
+  /* ---------- 中央 ---------- */
+  #centerCol{display:grid;grid-template-rows:auto 1fr auto;gap:8px;min-height:0}
+
+  /* 大きい数値 */
+  #hero{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr 1fr;gap:8px}
+  .hero{background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:7px 11px}
+  .hero .k{font-size:9px;letter-spacing:.18em;color:var(--dim);font-weight:700}
+  .hero .v{font-family:var(--mono);font-size:30px;font-weight:800;line-height:1.1}
+  .hero .v.small{font-size:22px}
+  .hero .u{font-size:11px;color:var(--dim2);font-weight:600;margin-left:3px}
+
+  /* RPMバー */
+  #rpmWrap{margin-top:5px;height:8px;background:#12161d;border-radius:4px;overflow:hidden;position:relative}
+  #rpmRed{position:absolute;top:0;bottom:0;right:0;left:90%;background:rgba(239,68,68,.22);
+    border-left:1px solid rgba(239,68,68,.6)}
+  #rpmBar{position:relative;height:100%;width:0;background:var(--cyan);transition:width .05s linear}
+  #rpmBar.red{background:var(--red);box-shadow:0 0 10px var(--red)}
+  #rpmWrap.flash{background:var(--blue)}
+
+  /* キャンバスは絶対配置にして親の高さに追従させる（%高さの循環を避ける） */
+  .cvbox{position:relative;flex:1 1 auto;min-height:0;overflow:hidden}
+  .cvbox > canvas{position:absolute;top:0;left:0;width:100%;height:100%;display:block}
+  .canvasCard{position:relative;padding:9px 11px 6px}
+  .canvasCard .legend{position:absolute;top:8px;right:11px;display:flex;gap:11px;
+    font-size:10px;font-weight:700;letter-spacing:.06em}
+  .legend i{display:inline-block;width:9px;height:2.5px;vertical-align:middle;margin-right:4px;border-radius:2px}
+
+  /* ---------- タイヤ ---------- */
+  #tyreGrid{display:grid;grid-template-columns:1fr 1fr;gap:7px;flex:0 0 auto}
+  .tyre{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:7px 8px}
+  .tyre .lbl{font-size:9px;letter-spacing:.16em;color:var(--dim);font-weight:800;margin-bottom:4px}
+  .tyre .core{font-family:var(--mono);font-size:23px;font-weight:800;line-height:1}
+  .tyre .core em{font-size:10px;font-style:normal;color:var(--dim2);margin-left:2px}
+  .imo{display:flex;gap:3px;margin:5px 0 4px;height:16px}
+  .imo div{flex:1;border-radius:3px;display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);font-size:9px;font-weight:700;color:#07090c}
+  .trow{display:flex;justify-content:space-between;font-size:10px;color:var(--dim);
+    font-family:var(--mono);line-height:1.55}
+  .trow b{color:var(--txt);font-weight:700}
+  .bar{height:3px;background:#1a1f27;border-radius:2px;overflow:hidden;margin-top:3px}
+  .bar i{display:block;height:100%;width:0;background:var(--cyan)}
+
+  /* ---------- 下段バー ---------- */
+  #footer{grid-column:1 / -1;display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:7px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:6px 9px}
+  .stat .k{font-size:9px;letter-spacing:.16em;color:var(--dim);font-weight:700}
+  .stat .v{font-family:var(--mono);font-size:17px;font-weight:800;margin-top:1px}
+  .warn{color:var(--red)!important} .ok{color:var(--green)!important}
+  .caution{color:var(--yellow)!important}
+
+  /* ---------- オーバーレイ ---------- */
+  #overlay{position:fixed;inset:0;background:rgba(7,9,12,.95);z-index:99;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:40px}
+  #overlay.hide{display:none}
+  #overlay h1{font-size:26px;font-weight:800;letter-spacing:.04em}
+  #overlay p{color:var(--dim);font-size:14px;max-width:520px;line-height:1.7}
+  .badge{font-size:11px;letter-spacing:.2em;color:var(--dim2);font-weight:700}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">AC · RACE ENGINEER</div>
+  <div class="id"><span id="hCar">—</span><span id="hTrack">—</span></div>
+  <div class="spacer"></div>
+  <div id="flagBadge">NONE</div>
+  <div class="hstat">SESSION<b id="hSession">—</b></div>
+  <div class="hstat">AIR<b id="hAir">—</b></div>
+  <div class="hstat">ROAD<b id="hRoad">—</b></div>
+  <div class="hstat">GRIP<b id="hGrip">—</b></div>
+  <div id="conn"><span id="connDot"></span><span id="connTxt">OFFLINE</span></div>
+</header>
+
+<main>
+  <!-- ============ 左：タイミング ============ -->
+  <div class="colstack">
+    <div class="card">
+      <h2>Timing</h2>
+      <div id="deltaBig">--.---</div>
+      <div id="deltaTrack"><div id="deltaFill"></div></div>
+      <div class="timeRow"><span class="k">CURRENT</span><span class="v cyan" id="tCur">--:--.---</span></div>
+      <div class="timeRow"><span class="k">LAST</span><span class="v" id="tLast">--:--.---</span></div>
+      <div class="timeRow"><span class="k">BEST</span><span class="v purple" id="tBest">--:--.---</span></div>
+      <div class="timeRow"><span class="k">LAST SECTOR</span><span class="v" style="font-size:15px" id="tSec">--.---</span></div>
+    </div>
+
+    <div class="card">
+      <h2>Session</h2>
+      <div class="kv">
+        <span class="k">ラップ</span><span class="v" id="sLap">1</span>
+        <span class="k">順位</span><span class="v" id="sPos">—</span>
+        <span class="k">セクター</span><span class="v" id="sSec">1</span>
+        <span class="k">残り時間</span><span class="v" id="sLeft">—</span>
+        <span class="k">ペナルティ</span><span class="v" id="sPen">0.0</span>
+        <span class="k">コンパウンド</span><span class="v" id="sComp">—</span>
+      </div>
+    </div>
+
+    <div class="card canvasCard" style="flex:1">
+      <h2>Track Map</h2>
+      <div class="legend" id="mapSrc" style="color:var(--dim2);font-weight:600">—</div>
+      <div class="cvbox" style="min-height:90px"><canvas id="mapCv"></canvas></div>
+    </div>
+
+    <div class="card canvasCard" style="flex:0 0 auto;height:150px">
+      <h2>G-G Diagram</h2>
+      <div class="cvbox"><canvas id="ggCv"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ============ 中央：数値 + トレース ============ -->
+  <div id="centerCol">
+    <div id="hero">
+      <div class="hero">
+        <div class="k">SPEED</div>
+        <div class="v"><span id="hSpeed">0</span><span class="u">km/h</span></div>
+        <div id="rpmWrap"><div id="rpmRed"></div><div id="rpmBar"></div></div>
+      </div>
+      <div class="hero"><div class="k">GEAR</div><div class="v" id="hGear">N</div></div>
+      <div class="hero"><div class="k">RPM</div><div class="v small" id="hRpm">0</div></div>
+      <div class="hero"><div class="k">STEER</div><div class="v small" id="hSteer">0°</div></div>
+      <div class="hero"><div class="k">BRAKE BIAS</div><div class="v small" id="hBias">—</div></div>
+    </div>
+
+    <div class="card canvasCard" style="min-height:0">
+      <h2>Inputs / Speed — 直近 30 秒</h2>
+      <div class="legend">
+        <span style="color:var(--green)"><i style="background:var(--green)"></i>THROTTLE</span>
+        <span style="color:var(--red)"><i style="background:var(--red)"></i>BRAKE</span>
+        <span style="color:var(--cyan)"><i style="background:var(--cyan)"></i>STEER</span>
+        <span style="color:#cbd5e1"><i style="background:#cbd5e1"></i>SPEED</span>
+      </div>
+      <div class="cvbox"><canvas id="traceCv"></canvas></div>
+    </div>
+
+    <div class="card canvasCard" style="flex:0 0 auto;height:120px">
+      <h2>Wheel Slip — 前後平均（黄破線 = スリップ 1.0 の目安）</h2>
+      <div class="legend">
+        <span style="color:var(--orange)"><i style="background:var(--orange)"></i>FRONT</span>
+        <span style="color:var(--blue)"><i style="background:var(--blue)"></i>REAR</span>
+      </div>
+      <div class="cvbox"><canvas id="slipCv"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ============ 右：タイヤ / ブレーキ ============ -->
+  <div class="colstack">
+    <div class="card" style="flex:0 0 auto">
+      <h2>Tyres</h2>
+      <div id="tyreGrid"></div>
+    </div>
+    <div class="card" style="flex:0 0 auto">
+      <h2>Fuel Strategy</h2>
+      <div class="kv">
+        <span class="k">残量</span><span class="v" id="fFuel">—</span>
+        <span class="k">1周あたり消費</span><span class="v" id="fPer">—</span>
+        <span class="k">走行可能周回</span><span class="v" id="fLaps">—</span>
+        <span class="k">タンク</span><span class="v" id="fMax">—</span>
+      </div>
+      <div class="bar" style="height:6px;margin-top:8px"><i id="fBar" style="background:var(--yellow)"></i></div>
+    </div>
+    <div class="card" style="flex:1;min-height:0">
+      <h2>Car</h2>
+      <div class="kv">
+        <span class="k">ダメージ 前</span><span class="v" id="dmg0">0</span>
+        <span class="k">ダメージ 後</span><span class="v" id="dmg1">0</span>
+        <span class="k">ダメージ 左</span><span class="v" id="dmg2">0</span>
+        <span class="k">ダメージ 右</span><span class="v" id="dmg3">0</span>
+        <span class="k">車高 前 / 後</span><span class="v" id="ride">—</span>
+        <span class="k">ターボブースト</span><span class="v" id="turbo">—</span>
+        <span class="k">ERS / KERS 蓄積</span><span class="v" id="enCharge">—</span>
+        <span class="k">回生 / 展開</span><span class="v" id="enFlow">—</span>
+        <span class="k">パワー / リカバリー</span><span class="v" id="enLevel">—</span>
+        <span class="k">ABS / TC 作動</span><span class="v" id="absTc">—</span>
+        <span class="k">DRS</span><span class="v" id="drs">—</span>
+        <span class="k">脱輪本数</span><span class="v" id="tout">0</span>
+        <span class="k">最高出力 / トルク</span><span class="v" id="power">—</span>
+        <span class="k">キャンバー FL/FR</span><span class="v" id="camF">—</span>
+        <span class="k">キャンバー RL/RR</span><span class="v" id="camR">—</span>
+        <span class="k">ストローク FL/FR</span><span class="v" id="susF">—</span>
+        <span class="k">ストローク RL/RR</span><span class="v" id="susR">—</span>
+        <span class="k">路面汚れ 平均</span><span class="v" id="dirt">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 下段 ============ -->
+  <div id="footer">
+    <div class="stat"><div class="k">THROTTLE</div><div class="v ok" id="ftThr">0%</div></div>
+    <div class="stat"><div class="k">BRAKE</div><div class="v warn" id="ftBrk">0%</div></div>
+    <div class="stat"><div class="k">CLUTCH</div><div class="v" id="ftClu">0%</div></div>
+    <div class="stat"><div class="k">G LONG</div><div class="v" id="ftGl">0.00</div></div>
+    <div class="stat"><div class="k">G LAT</div><div class="v" id="ftGa">0.00</div></div>
+    <div class="stat"><div class="k">BRAKE T. FL/FR</div><div class="v" id="ftBtF">—</div></div>
+    <div class="stat"><div class="k">BRAKE T. RL/RR</div><div class="v" id="ftBtR">—</div></div>
+    <div class="stat"><div class="k">PIT</div><div class="v" id="ftPit">NO</div></div>
+    <div class="stat"><div class="k">LIMITER</div><div class="v" id="ftLim">OFF</div></div>
+    <div class="stat"><div class="k">WIND</div><div class="v" id="ftWind">—</div></div>
+  </div>
+</main>
+
+<div id="overlay">
+  <div class="badge">ASSETTO CORSA TELEMETRY</div>
+  <h1 id="ovTitle">ブリッジに接続しています…</h1>
+  <p id="ovMsg">ゲームPCで bridge_claude.py を起動し、Assetto Corsa のセッションを開始してください。</p>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const CORNERS = ['FL','FR','RL','RR'];
+
+  /* ============ タイヤカードを生成 ============ */
+  const tyreEls = [];
+  const grid = $('tyreGrid');
+  CORNERS.forEach((name, i) => {
+    const d = document.createElement('div');
+    d.className = 'tyre';
+    d.innerHTML =
+      '<div class="lbl">' + name + '</div>' +
+      '<div class="core"><span class="cv">--</span><em>°C</em></div>' +
+      '<div class="imo"><div class="i">-</div><div class="m">-</div><div class="o">-</div></div>' +
+      '<div class="trow">PRESS <b class="p">--</b></div>' +
+      '<div class="trow">WEAR <b class="w">--</b></div>' +
+      '<div class="trow">BRAKE <b class="b">--</b></div>' +
+      '<div class="trow">LOAD <b class="l">--</b></div>' +
+      '<div class="bar"><i class="sl"></i></div>';
+    grid.appendChild(d);
+    tyreEls.push({
+      core:d.querySelector('.cv'), i:d.querySelector('.i'), m:d.querySelector('.m'),
+      o:d.querySelector('.o'), p:d.querySelector('.p'), w:d.querySelector('.w'),
+      b:d.querySelector('.b'), l:d.querySelector('.l'), sl:d.querySelector('.sl')
+    });
+  });
+
+  function tyreColor(t){
+    if (t < 55)  return '#1d4ed8';
+    if (t < 70)  return '#3b82f6';
+    if (t < 95)  return '#22c55e';
+    if (t < 108) return '#eab308';
+    return '#ef4444';
+  }
+  function brakeColor(t){
+    if (t < 200) return '#3b82f6';
+    if (t < 650) return '#22c55e';
+    if (t < 850) return '#eab308';
+    return '#ef4444';
+  }
+
+  /* ============ 履歴バッファ ============ */
+  const HIST = 30 * 60;                 // 30秒 @60Hz
+  const hist = {thr:[], brk:[], str:[], spd:[], slipF:[], slipR:[]};
+  const ggPts = [];                      // 直近のG点
+  const mapPts = [];                     // コースマップ用の座標
+
+  function push(arr, v){ arr.push(v); if (arr.length > HIST) arr.shift(); }
+
+  /* ============ Canvas ============ */
+  function fit(cv){
+    const r = cv.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.max(1, Math.round(r.width * dpr));
+    const h = Math.max(1, Math.round(r.height * dpr));
+    if (cv.width !== w || cv.height !== h){ cv.width = w; cv.height = h; }
+    return {w, h, dpr};
+  }
+
+  function drawTrace(){
+    const cv = $('traceCv'), {w,h} = fit(cv), c = cv.getContext('2d');
+    c.clearRect(0,0,w,h);
+    // グリッド
+    c.strokeStyle = '#161b22'; c.lineWidth = 1;
+    for (let i = 0; i <= 4; i++){
+      const y = Math.round(h * i / 4) + .5;
+      c.beginPath(); c.moveTo(0,y); c.lineTo(w,y); c.stroke();
+    }
+    const n = hist.thr.length;
+    if (n < 2) return;
+    const dx = w / (HIST - 1);
+    const line = (arr, color, norm, width) => {
+      c.strokeStyle = color; c.lineWidth = width || 1.6 * (window.devicePixelRatio||1);
+      c.beginPath();
+      const off = HIST - n;
+      for (let i = 0; i < n; i++){
+        const x = (off + i) * dx;
+        const y = h - norm(arr[i]) * (h - 2) - 1;
+        i ? c.lineTo(x,y) : c.moveTo(x,y);
+      }
+      c.stroke();
+    };
+    line(hist.spd, '#cbd5e1', v => Math.max(0, Math.min(1, v/330)), 1.2*(window.devicePixelRatio||1));
+    line(hist.str, '#06b6d4', v => 0.5 + Math.max(-1,Math.min(1, v/180))*0.5);
+    line(hist.brk, '#ef4444', v => v);
+    line(hist.thr, '#22c55e', v => v);
+  }
+
+  function drawSlip(){
+    const cv = $('slipCv'), {w,h} = fit(cv), c = cv.getContext('2d');
+    c.clearRect(0,0,w,h);
+    const dpr = window.devicePixelRatio || 1;
+    const SLIP_MAX = 4;                       // グリップ限界の目安 ≒ 1.0
+    c.strokeStyle = '#1e232c'; c.lineWidth = 1;
+    for (let g = 1; g <= SLIP_MAX; g++){
+      const y = Math.round(h - h*g/SLIP_MAX) + .5;
+      c.beginPath(); c.moveTo(0,y); c.lineTo(w,y); c.stroke();
+    }
+    c.strokeStyle = '#eab308'; c.setLineDash([4*dpr, 4*dpr]);
+    const yLim = Math.round(h - h/SLIP_MAX) + .5;   // slip = 1.0 の線
+    c.beginPath(); c.moveTo(0,yLim); c.lineTo(w,yLim); c.stroke();
+    c.setLineDash([]);
+    const n = hist.slipF.length; if (n < 2) return;
+    const dx = w / (HIST - 1), off = HIST - n;
+    const line = (arr,color) => {
+      c.strokeStyle = color; c.lineWidth = 1.6*dpr;
+      c.beginPath();
+      for (let i=0;i<n;i++){
+        const x=(off+i)*dx, y = h - Math.min(1, arr[i]/SLIP_MAX) * (h-2) - 1;
+        i ? c.lineTo(x,y) : c.moveTo(x,y);
+      }
+      c.stroke();
+    };
+    line(hist.slipR, '#3b82f6');
+    line(hist.slipF, '#f97316');
+  }
+
+  function drawGG(){
+    const cv = $('ggCv'), {w,h} = fit(cv), c = cv.getContext('2d');
+    c.clearRect(0,0,w,h);
+    const cx = w/2, cy = h/2, R = Math.min(w,h)/2 - 4*(window.devicePixelRatio||1);
+    c.strokeStyle = '#1b2029'; c.lineWidth = 1;
+    for (let g = 1; g <= 3; g++){
+      c.beginPath(); c.arc(cx, cy, R*g/3, 0, Math.PI*2); c.stroke();
+    }
+    c.beginPath(); c.moveTo(cx-R,cy); c.lineTo(cx+R,cy);
+    c.moveTo(cx,cy-R); c.lineTo(cx,cy+R); c.stroke();
+    for (let i = 0; i < ggPts.length; i++){
+      const p = ggPts[i], a = (i+1)/ggPts.length;
+      const x = cx + Math.max(-1,Math.min(1,p[0]/3))*R;
+      const y = cy - Math.max(-1,Math.min(1,p[1]/3))*R;
+      c.fillStyle = i === ggPts.length-1 ? '#ffffff'
+        : 'rgba(6,182,212,' + (a*0.55).toFixed(3) + ')';
+      c.beginPath(); c.arc(x, y, (i===ggPts.length-1?3:1.6)*(window.devicePixelRatio||1), 0, Math.PI*2); c.fill();
+    }
+  }
+
+  /* コース形状。trackmap_claude.py で書き出した JSON があればそれを使い、
+     無ければ走行座標から自前で描く。 */
+  let trackMap = null, trackKey = null, trackLoading = false;
+  let liveXY = null;
+
+  function loadTrackMap(key, attempt){
+    attempt = attempt || 0;
+    if (attempt === 0){
+      if (key === trackKey || trackLoading) return;
+      trackKey = key; trackMap = null;
+    } else if (key !== trackKey){
+      return;                       // 途中でコースが変わったら打ち切り
+    }
+    trackLoading = true;
+    $('mapSrc').textContent = attempt ? '読み込み中… (' + (attempt+1) + ')' : '読み込み中…';
+    fetch('/track.json?k=' + encodeURIComponent(key), {cache:'no-store'})
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('none')))
+      .then(j => {
+        if (!j || !Array.isArray(j.line) || j.line.length < 8) throw new Error('empty');
+        trackMap = j;
+        trackLoading = false;
+        $('mapSrc').textContent = 'AC のコース形状' +
+          (j.lengthM ? ' · ' + (j.lengthM / 1000).toFixed(2) + ' km' : '');
+      })
+      .catch(() => {
+        trackLoading = false;
+        // ブリッジ側が AC から読み出している最中かもしれないので数回リトライ
+        if (attempt < 3){
+          $('mapSrc').textContent = '読み込み中…';
+          setTimeout(() => loadTrackMap(key, attempt + 1), 1500 * (attempt + 1));
+        } else {
+          trackMap = null;
+          $('mapSrc').textContent = '走行から生成';
+        }
+      });
+  }
+
+  function drawMap(){
+    const cv = $('mapCv'), {w,h,dpr} = fit(cv), c = cv.getContext('2d');
+    c.clearRect(0,0,w,h);
+    const outline = trackMap ? trackMap.line : null;
+    const shape = outline || mapPts;
+    if (!shape || shape.length < 8) return;
+
+    let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
+    for (const p of shape){
+      if(p[0]<x0)x0=p[0]; if(p[0]>x1)x1=p[0];
+      if(p[1]<y0)y0=p[1]; if(p[1]>y1)y1=p[1];
+    }
+    const pad = 10*dpr;
+    const s = Math.min((w-pad*2)/Math.max(1,x1-x0), (h-pad*2)/Math.max(1,y1-y0));
+    const ox = pad + ((w-pad*2) - (x1-x0)*s)/2;
+    const oy = pad + ((h-pad*2) - (y1-y0)*s)/2;
+    /* AC のワールド座標は左手系（X:右, Y:上, Z:奥）。真上から見た図にするときは
+       画面の下方向を +Z にする（Z を上向きにすると鏡像になる）。
+       AC 内蔵ミニマップ(map.png)と同じ向きになる。 */
+    const P = p => [ox + (p[0]-x0)*s, oy + (p[1]-y0)*s];
+
+    /* コース形状 */
+    c.lineJoin = 'round'; c.lineCap = 'round';
+    if (outline){
+      c.strokeStyle = '#39414f'; c.lineWidth = 3.2*dpr;
+      c.beginPath();
+      outline.forEach((p,i) => { const q=P(p); i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]); });
+      c.stroke();
+      /* スタート・フィニッシュ */
+      const a = P(outline[0]), b = P(outline[Math.min(3, outline.length-1)]);
+      const dx = b[0]-a[0], dy = b[1]-a[1], len = Math.hypot(dx,dy) || 1;
+      const nx = -dy/len*6*dpr, ny = dx/len*6*dpr;
+      c.strokeStyle = '#e8ecf3'; c.lineWidth = 2*dpr;
+      c.beginPath(); c.moveTo(a[0]-nx, a[1]-ny); c.lineTo(a[0]+nx, a[1]+ny); c.stroke();
+    } else {
+      c.strokeStyle = '#2a323f'; c.lineWidth = 2*dpr;
+      c.beginPath();
+      mapPts.forEach((p,i) => { const q=P(p); i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]); });
+      c.stroke();
+    }
+
+    /* 直近の走行軌跡 */
+    if (mapPts.length > 2){
+      const tail = mapPts.slice(-260);
+      c.strokeStyle = 'rgba(6,182,212,.85)'; c.lineWidth = 2*dpr;
+      c.beginPath();
+      tail.forEach((p,i) => { const q=P(p); i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]); });
+      c.stroke();
+    }
+
+    /* 現在地 */
+    const cur = liveXY || shape[shape.length-1];
+    const q = P(cur);
+    c.fillStyle = 'rgba(239,68,68,.28)';
+    c.beginPath(); c.arc(q[0], q[1], 8*dpr, 0, Math.PI*2); c.fill();
+    c.fillStyle = '#ef4444';
+    c.beginPath(); c.arc(q[0], q[1], 4*dpr, 0, Math.PI*2); c.fill();
+    c.strokeStyle = '#07090c'; c.lineWidth = 1.2*dpr; c.stroke();
+  }
+
+  /* ============ 表示更新 ============ */
+  let latest = null, dirty = false, lastMapNorm = -1, boostRawMax = 0, lastCar = null;
+
+  function fmtLeft(ms){
+    if (ms == null || ms <= 0 || ms > 86400000) return '—';
+    const s = Math.floor(ms/1000), m = Math.floor(s/60);
+    return m + ':' + String(s%60).padStart(2,'0');
+  }
+
+  function apply(d){
+    /* ヘッダー */
+    if (d.car !== lastCar){ lastCar = d.car; boostRawMax = 0; }
+    $('hCar').textContent = d.car || '—';
+    $('hTrack').textContent = (d.track || '') + (d.trackConfig ? ' / ' + d.trackConfig : '');
+    $('hSession').textContent = d.session || '—';
+    $('hAir').textContent = d.airTemp != null ? d.airTemp.toFixed(1)+'°C' : '—';
+    $('hRoad').textContent = d.roadTemp != null ? d.roadTemp.toFixed(1)+'°C' : '—';
+    $('hGrip').textContent = d.surfaceGrip != null ? (d.surfaceGrip*100).toFixed(1)+'%' : '—';
+    const fb = $('flagBadge');
+    fb.textContent = d.flag || 'NONE';
+    fb.style.background = ({YELLOW:'#eab308',BLUE:'#3b82f6',WHITE:'#e5e7eb',
+      BLACK:'#111827',CHECKERED:'#e5e7eb',PENALTY:'#ef4444'})[d.flag] || '#1b2029';
+    fb.style.color = (d.flag && d.flag !== 'NONE') ? '#07090c' : '#79839a';
+
+    /* ヒーロー */
+    $('hSpeed').textContent = Math.round(d.speed);
+    $('hGear').textContent = d.gear;
+    $('hRpm').textContent = Math.round(d.rpm).toLocaleString();
+    $('hSteer').textContent = d.steer.toFixed(0) + '°';
+    $('hBias').textContent = d.brakeBias ? (d.brakeBias*100).toFixed(1)+'%' : '—';
+    const ratio = d.maxRpm > 0 ? d.rpm/d.maxRpm : 0;
+    $('rpmBar').style.width = Math.min(100, ratio*100) + '%';
+    $('rpmBar').classList.toggle('red', ratio >= 0.90);      // レッドゾーン
+    $('rpmWrap').classList.toggle('flash', ratio > 0.985);
+    $('hRpm').style.color = ratio >= 0.90 ? '#ef4444' : '';
+
+    /* タイミング */
+    $('tCur').textContent = d.curTimeStr;
+    $('tLast').textContent = d.lastTimeStr;
+    $('tBest').textContent = d.bestTimeStr;
+    $('tSec').textContent = d.lastSector > 0 ? (d.lastSector/1000).toFixed(3) : '--.---';
+    const db = $('deltaBig');
+    if (d.delta == null){ db.textContent = '--.---'; db.style.color = '#4e5768';
+      $('deltaFill').style.width = '0'; }
+    else {
+      db.textContent = (d.delta>=0?'+':'') + d.delta.toFixed(3);
+      db.style.color = d.delta < 0 ? '#22c55e' : '#ef4444';
+      const v = Math.max(-2, Math.min(2, d.delta)), pct = Math.abs(v)/2*50;
+      const f = $('deltaFill');
+      f.style.width = pct+'%'; f.style.left = (v<0? 50-pct : 50)+'%';
+      f.style.background = v<0 ? '#22c55e' : '#ef4444';
+    }
+
+    /* セッション */
+    $('sLap').textContent = d.totalLaps>0 ? d.lap+' / '+d.totalLaps : d.lap;
+    $('sPos').textContent = d.position || '—';
+    $('sSec').textContent = (d.sector != null ? d.sector+1 : '—');
+    $('sLeft').textContent = fmtLeft(d.sessionTimeLeft);
+    $('sPen').textContent = (d.penalty||0).toFixed(1);
+    $('sComp').textContent = (d.tyre && d.tyre.compound) || '—';
+
+    /* タイヤ */
+    const T = d.tyre;
+    if (T) for (let i = 0; i < 4; i++){
+      const e = tyreEls[i];
+      e.core.textContent = T.core[i].toFixed(0);
+      e.core.parentElement.style.color = tyreColor(T.core[i]);
+      [['i',T.inner[i]],['m',T.middle[i]],['o',T.outer[i]]].forEach(([k,v])=>{
+        e[k].textContent = v.toFixed(0);
+        e[k].style.background = tyreColor(v);
+      });
+      e.p.textContent = T.press[i].toFixed(1) + ' psi';
+      e.w.textContent = T.wear[i].toFixed(1) + ' %';
+      e.b.textContent = d.brakeTemp[i].toFixed(0) + ' °C';
+      e.b.style.color = brakeColor(d.brakeTemp[i]);
+      e.l.textContent = T.load[i].toFixed(0) + ' N';
+      const sl = Math.min(1, T.slip[i]/8);
+      e.sl.style.width = (sl*100)+'%';
+      e.sl.style.background = sl > 0.5 ? '#ef4444' : (sl > 0.25 ? '#eab308' : '#06b6d4');
+    }
+
+    /* 燃料 */
+    $('fFuel').textContent = d.fuel != null ? d.fuel.toFixed(2)+' L' : '—';
+    $('fPer').textContent = d.fuelPerLap != null ? d.fuelPerLap.toFixed(2)+' L' : '計測中…';
+    const fl = $('fLaps');
+    fl.textContent = d.lapsLeft != null ? d.lapsLeft.toFixed(1)+' 周' : '計測中…';
+    fl.className = 'v' + (d.lapsLeft != null && d.lapsLeft < 2 ? ' warn'
+      : (d.lapsLeft != null && d.lapsLeft < 4 ? ' caution' : ''));
+    $('fMax').textContent = d.maxFuel ? d.maxFuel.toFixed(0)+' L' : '—';
+    $('fBar').style.width = (d.maxFuel ? Math.min(100, d.fuel/d.maxFuel*100) : 0) + '%';
+
+    /* 車体 */
+    const dm = d.damage || [0,0,0,0,0];
+    $('dmg0').textContent = dm[0].toFixed(0); $('dmg1').textContent = dm[1].toFixed(0);
+    $('dmg2').textContent = dm[2].toFixed(0); $('dmg3').textContent = dm[3].toFixed(0);
+    $('ride').textContent = d.rideHeight
+      ? (d.rideHeight[0]*1000).toFixed(0)+' / '+(d.rideHeight[1]*1000).toFixed(0)+' mm' : '—';
+    /* ターボ: AC の turboBoost は「0〜1の比率」の車と「bar実値」の車がある。
+       観測最大が 1.05 以下で maxTurboBoost があれば比率とみなす。 */
+    if (typeof d.turbo === 'number' && isFinite(d.turbo) && d.turbo > boostRawMax)
+      boostRawMax = d.turbo;
+    const maxT = d.maxTurbo > 0 ? d.maxTurbo : 0;
+    const asRatio = (boostRawMax <= 1.05 && maxT > 0);
+    const boostBar = asRatio ? (d.turbo||0) * maxT : (d.turbo||0);
+    const boostFull = asRatio ? maxT : Math.max(maxT, boostRawMax, 0.4);
+    $('turbo').textContent = (maxT > 0 || boostRawMax > 0.02)
+      ? boostBar.toFixed(2) + ' bar (' + (boostFull>0 ? (boostBar/boostFull*100).toFixed(0) : 0) + '%)'
+      : 'なし';
+
+    /* ERS / KERS（AC には MGU-H / MGU-K の個別項目は無い） */
+    const K = d.kers, E = d.ers;
+    if ((d.hasKERS || d.hasERS) && K){
+      let pct = null;
+      if (d.hasKERS && typeof K.charge === 'number') pct = K.charge*100;
+      else if (E && E.maxJ > 0) pct = K.kj*1000/E.maxJ*100;
+      else if (K.maxJ > 0) pct = K.kj*1000/K.maxJ*100;
+      pct = (pct == null) ? null : Math.max(0, Math.min(100, pct));
+      $('enCharge').textContent = (pct == null ? '—' : pct.toFixed(0)+' %') +
+        (K.kj > 0 ? '  (' + K.kj.toFixed(0) + ' kJ)' : '');
+      const deploy = K.input > 0.02;
+      const charge = !!(E && E.isCharging);
+      $('enFlow').textContent = charge
+        ? ('回生中' + (E.heatCharging ? '（熱）' : '（ブレーキ）'))
+        : (deploy ? '展開中 ' + (K.input*100).toFixed(0) + '%' : '—');
+      $('enFlow').className = 'v' + (charge ? ' ok' : (deploy ? ' caution' : ''));
+      $('enLevel').textContent = (E && E.powerLevels > 0)
+        ? ('P' + E.power + ' / R' + E.recovery) : '—';
+    } else {
+      $('enCharge').textContent = 'なし';
+      $('enFlow').textContent = '—'; $('enFlow').className = 'v';
+      $('enLevel').textContent = '—';
+    }
+    $('absTc').textContent = (d.abs>0.01?'ABS ':'') + (d.tc>0.01?'TC':'') || '—';
+    $('drs').textContent = !d.hasDRS ? 'なし' : (d.drsOn?'OPEN':(d.drsAvail?'READY':'—'));
+    $('tout').textContent = d.tyresOut;
+    $('power').textContent = d.maxPower ? d.maxPower.toFixed(0)+' hp / '+d.maxTorque.toFixed(0)+' Nm' : '—';
+    if (T){
+      $('camF').textContent = T.camber[0].toFixed(2)+' / '+T.camber[1].toFixed(2)+' °';
+      $('camR').textContent = T.camber[2].toFixed(2)+' / '+T.camber[3].toFixed(2)+' °';
+      $('susF').textContent = (T.susp[0]*1000).toFixed(1)+' / '+(T.susp[1]*1000).toFixed(1)+' mm';
+      $('susR').textContent = (T.susp[2]*1000).toFixed(1)+' / '+(T.susp[3]*1000).toFixed(1)+' mm';
+      $('dirt').textContent = ((T.dirt[0]+T.dirt[1]+T.dirt[2]+T.dirt[3])/4).toFixed(2);
+    }
+
+    /* フッター */
+    $('ftThr').textContent = (d.throttle*100).toFixed(0)+'%';
+    $('ftBrk').textContent = (d.brake*100).toFixed(0)+'%';
+    $('ftClu').textContent = (d.clutch*100).toFixed(0)+'%';
+    $('ftGl').textContent = d.g.lon.toFixed(2);
+    $('ftGa').textContent = d.g.lat.toFixed(2);
+    $('ftBtF').textContent = d.brakeTemp[0].toFixed(0)+' / '+d.brakeTemp[1].toFixed(0);
+    $('ftBtR').textContent = d.brakeTemp[2].toFixed(0)+' / '+d.brakeTemp[3].toFixed(0);
+    const pit = $('ftPit');
+    pit.textContent = d.isInPit ? 'BOX' : (d.isInPitLane ? 'LANE' : 'NO');
+    pit.className = 'v' + (d.isInPit||d.isInPitLane ? ' caution' : '');
+    const lim = $('ftLim');
+    lim.textContent = d.pitLimiter ? 'ON' : 'OFF';
+    lim.className = 'v' + (d.pitLimiter ? ' ok' : '');
+    $('ftWind').textContent = d.wind ? d.wind[0].toFixed(1)+' m/s' : '—';
+  }
+
+  function loop(){
+    requestAnimationFrame(loop);
+    if (!dirty || !latest) return;
+    dirty = false;
+    const d = latest;
+
+    const ov = $('overlay');
+    $('connDot').classList.toggle('ok', !!d.connected);
+    $('connTxt').textContent = d.connected ? (d.demo ? 'DEMO' : (d.statusText||'LIVE')) : 'OFFLINE';
+
+    if (!d.connected){
+      ov.classList.remove('hide');
+      $('ovTitle').textContent = d.statusText === '切断' ? 'ブリッジが切断されました' : 'テレメトリー待機中';
+      $('ovMsg').textContent = d.note || 'Assetto Corsa のセッションを開始してください。';
+      return;
+    }
+    ov.classList.add('hide');
+
+    /* 履歴 */
+    push(hist.thr, d.throttle); push(hist.brk, d.brake);
+    push(hist.str, d.steer);    push(hist.spd, d.speed);
+    const T = d.tyre;
+    push(hist.slipF, T ? (T.slip[0]+T.slip[1])/2 : 0);
+    push(hist.slipR, T ? (T.slip[2]+T.slip[3])/2 : 0);
+    ggPts.push([d.g.lat, d.g.lon]);
+    if (ggPts.length > 220) ggPts.shift();
+
+    /* コースが変わったら形状データを取りに行く */
+    loadTrackMap((d.track || '') + '|' + (d.trackConfig || ''));
+
+    /* マップ：1周ぶんの座標を貯める */
+    if (d.coords && (d.coords[0] || d.coords[1])){
+      liveXY = d.coords;
+      if (d.normPos < lastMapNorm - 0.5) mapPts.length = 0;   // 周回リセット
+      lastMapNorm = d.normPos;
+      const last = mapPts[mapPts.length-1];
+      if (!last || Math.hypot(d.coords[0]-last[0], d.coords[1]-last[1]) > 2.5){
+        mapPts.push([d.coords[0], d.coords[1]]);
+        if (mapPts.length > 4000) mapPts.shift();
+      }
+    }
+
+    apply(d);
+    drawTrace(); drawSlip(); drawGG(); drawMap();
+  }
+  requestAnimationFrame(loop);
+
+  /* ============ WebSocket ============ */
+  let retry = 0;
+  function connect(){
+    const url = (location.protocol==='https:'?'wss://':'ws://') + location.host + '/ws';
+    const ws = new WebSocket(url);
+    ws.onopen = () => { retry = 0; };
+    ws.onmessage = ev => { try{ latest = JSON.parse(ev.data); dirty = true; }catch(e){} };
+    ws.onclose = () => {
+      latest = {connected:false, statusText:'切断',
+        note:'ブリッジとの接続が切れました。自動的に再接続します。'};
+      dirty = true;
+      retry = Math.min(retry+1, 10);
+      setTimeout(connect, 400 + retry*300);
+    };
+    ws.onerror = () => { try{ ws.close(); }catch(e){} };
+  }
+  connect();
+  window.addEventListener('resize', () => { dirty = true; });
+})();
+</script>
+</body>
+</html>

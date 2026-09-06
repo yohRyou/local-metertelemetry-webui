@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AC Telemetry Bridge</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{min-height:100vh;background:#07090c;color:#e8ecf3;display:flex;
+    align-items:center;justify-content:center;padding:6vw;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans JP",sans-serif}
+  .wrap{width:100%;max-width:760px}
+  .badge{font-size:11px;letter-spacing:.28em;color:#4e5768;font-weight:700}
+  h1{font-size:clamp(26px,5vw,40px);font-weight:800;letter-spacing:-.01em;margin:10px 0 6px}
+  .sub{color:#79839a;font-size:15px;line-height:1.7;margin-bottom:28px}
+  .grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+  a.card{display:block;background:#0e1116;border:1px solid #1e232c;border-radius:12px;
+    padding:22px;text-decoration:none;color:inherit;transition:border-color .15s,transform .15s}
+  a.card:hover{border-color:#3b82f6;transform:translateY(-2px)}
+  a.card .t{font-size:19px;font-weight:800;margin-bottom:6px}
+  a.card .d{font-size:13px;color:#79839a;line-height:1.65}
+  .status{margin-top:26px;background:#0e1116;border:1px solid #1e232c;border-radius:12px;
+    padding:16px 20px;font-size:13px;color:#79839a;display:flex;align-items:center;gap:10px}
+  #dot{width:9px;height:9px;border-radius:50%;background:#ef4444;box-shadow:0 0 8px currentColor;color:#ef4444}
+  #dot.ok{background:#22c55e;color:#22c55e}
+  #st{color:#e8ecf3;font-weight:700}
+  .url{margin-top:16px;font-size:13px;color:#4e5768;line-height:1.9}
+  .url code{background:#12161d;border:1px solid #1e232c;border-radius:5px;
+    padding:2px 7px;color:#06b6d4;font-family:ui-monospace,Menlo,Consolas,monospace}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="badge">ASSETTO CORSA · LOCAL TELEMETRY</div>
+  <h1>テレメトリーブリッジ</h1>
+  <p class="sub">同じLAN上の端末から下のいずれかを開いてください。インターネット接続は使いません。</p>
+
+  <div class="grid">
+    <a class="card" href="/mobile">
+      <div class="t">📱 ダッシュボード</div>
+      <div class="d">スマホ・タブレット向け。シフトランプ、ギア、速度、回転数、ラップタイム、デルタ。横向き全画面推奨。</div>
+    </a>
+    <a class="card" href="/engineer">
+      <div class="t">🖥 レースエンジニア</div>
+      <div class="d">PC向け。タイヤ内外温度・内圧・摩耗、ブレーキ温度、入力トレース、G-G、燃料戦略、コースマップ。</div>
+    </a>
+  </div>
+
+  <div class="status"><span id="dot"></span><span>ブリッジ: <span id="st">接続中…</span></span></div>
+
+  <div class="url">
+    このページのURL: <code id="here">—</code><br>
+    他の端末では同じURLの <code>/mobile</code> または <code>/engineer</code> を開いてください。
+  </div>
+</div>
+<script>
+  document.getElementById('here').textContent = location.origin;
+  (function c(){
+    const ws = new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');
+    ws.onmessage = e => {
+      try{
+        const d = JSON.parse(e.data);
+        document.getElementById('dot').classList.toggle('ok', !!d.connected);
+        document.getElementById('st').textContent =
+          d.connected ? (d.demo ? 'デモモードで稼働中' : 'ゲームに接続中 (' + d.statusText + ')')
+                      : (d.note || 'Assetto Corsa を待機中');
+      }catch(err){}
+    };
+    ws.onclose = () => {
+      document.getElementById('dot').classList.remove('ok');
+      document.getElementById('st').textContent = '未接続';
+      setTimeout(c, 1500);
+    };
+  })();
+</script>
+</body>
+</html>

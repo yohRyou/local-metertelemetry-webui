@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#000000">
+<title>AC Dash</title>
+<style>
+  :root{
+    --bg:#000; --panel:#0d0f12; --line:#20242b;
+    --txt:#f2f4f8; --dim:#7c8595;
+    --green:#25d366; --yellow:#ffcc00; --red:#ff2d2d; --blue:#2b6bff;
+    --cyan:#00e5ff;
+    --flash:#2b6bff;              /* シフトポイントのフラッシュ色 */
+  }
+  body.flash-red{--flash:#ff2d2d}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-variant-numeric:tabular-nums;user-select:none}
+  #app{display:flex;flex-direction:column;height:100%;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+
+  /* ================= タイミングランプ ================= */
+  #lights{display:flex;gap:.4vw;height:9vh;min-height:34px;padding:.6vh .8vw;flex:0 0 auto}
+  .lamp{flex:1;border-radius:.6vh;background:#14171c;border:1px solid #23272e;
+    transition:background .04s linear, box-shadow .04s linear}
+  .lamp.on{box-shadow:0 0 2.2vh currentColor}
+  #lights.flash .lamp{background:var(--flash)!important;color:var(--flash);
+    box-shadow:0 0 2.6vh var(--flash);border-color:var(--flash)}
+
+  /* ================= 横バータコメーター ================= */
+  #tachBar{display:none;flex:0 0 auto;height:5.4vh;margin:.4vh .8vw 0;position:relative;
+    background:#0b0d10;border:1px solid var(--line);border-radius:.8vh;overflow:hidden}
+  body.meter-bar #tachBar{display:block}
+  #tbRed{position:absolute;top:0;bottom:0;right:0;background:rgba(255,45,45,.13);
+    border-left:1px solid rgba(255,45,45,.45)}
+  #tbFill{position:absolute;top:0;bottom:0;left:0;width:0;background:var(--cyan);
+    transition:width .05s linear, background .06s linear}
+  #tbFill.red{background:var(--red);box-shadow:0 0 3vh var(--red)}
+  #tbTicks{position:absolute;inset:0;pointer-events:none}
+  #tbTicks span{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.12)}
+  #tbTicks span::after{content:attr(data-k);position:absolute;bottom:.2vh;left:.5vh;
+    font-size:1.4vh;color:rgba(255,255,255,.3);font-weight:700}
+
+  /* ================= メイン ================= */
+  #main{flex:1;display:grid;grid-template-columns:1fr 1.15fr 1fr;align-items:center;
+    gap:1vw;padding:0 1.4vw;min-height:0}
+  .col{display:flex;flex-direction:column;justify-content:center;height:100%;min-width:0}
+
+  .speed{font-size:24vh;line-height:.82;font-weight:800;letter-spacing:-.05em;text-align:center}
+  .speed small{display:block;font-size:2.6vh;font-weight:600;color:var(--dim);
+    letter-spacing:.28em;margin-top:1vh}
+
+  #hbars{margin-top:2.2vh;display:flex;flex-direction:column;gap:1.1vh}
+  .hbar{display:flex;align-items:center;gap:1vh}
+  .hbar span{font-size:1.7vh;font-weight:700;color:var(--dim);letter-spacing:.14em;width:4.6vh}
+  .hbar .track{flex:1;height:2.2vh;background:#12151a;border:1px solid var(--line);
+    border-radius:.5vh;overflow:hidden}
+  .hbar i{display:block;height:100%;width:0}
+  #hThr{background:var(--green)} #hBrk{background:var(--red)}
+
+  /* 円弧タコメーター + ギア */
+  #meterWrap{position:relative;height:100%;display:flex;align-items:center;justify-content:center}
+  #arcCv{position:absolute;inset:0;width:100%;height:100%;display:none}
+  body.meter-arc #arcCv{display:block}
+  #gearBox{position:relative;text-align:center;z-index:2}
+  #gear{font-size:34vh;line-height:.78;font-weight:900;letter-spacing:-.06em;transition:color .08s}
+  body.meter-bar #gear{font-size:44vh}
+  #rpmtxt{font-size:2.8vh;font-weight:800;color:var(--dim);letter-spacing:.1em;margin-top:.6vh;
+    transition:color .08s}
+
+  /* メーター内のチップ（ブースト / 燃料 / ERS） */
+  #chips{display:flex;gap:.9vh;justify-content:center;margin-top:1.6vh}
+  .chip{display:none;min-width:12vh;background:rgba(13,15,18,.9);
+    border:1px solid var(--line);border-radius:.9vh;padding:.7vh .9vh;text-align:left}
+  .chip.on{display:block}
+  .chip b{display:block;font-size:1.4vh;color:var(--dim);letter-spacing:.14em;font-weight:700}
+  .chip span{display:block;font-size:2.6vh;font-weight:800;line-height:1.2;margin-top:.1vh}
+  .chip .bar{height:.7vh;background:#12151a;border-radius:.35vh;overflow:hidden;margin-top:.6vh}
+  .chip i{display:block;height:100%;width:0;transition:width .06s linear}
+  #chBoost i{background:#ff9f0a} #chFuel i{background:var(--yellow)}
+  #chErs i{background:var(--cyan)}
+  #chErs i.charging{background:var(--green)}
+
+  /* 横バーモード用のブーストバー */
+  #boostBar{display:none;flex:0 0 auto;height:2.4vh;margin:.4vh .8vw 0;position:relative;
+    background:#0b0d10;border:1px solid var(--line);border-radius:.6vh;overflow:hidden}
+  body.meter-bar #boostBar.on{display:block}
+  #bbFill{position:absolute;top:0;bottom:0;left:0;width:0;background:#ff9f0a;
+    transition:width .06s linear}
+  #bbLab{position:absolute;inset:0;display:flex;align-items:center;padding-left:1vh;
+    font-size:1.5vh;font-weight:800;color:#fff;letter-spacing:.12em;text-shadow:0 1px 2px #000}
+
+  .stack{display:flex;flex-direction:column;gap:1.4vh;height:100%;padding:1vh 0}
+  .cell{background:var(--panel);border:1px solid var(--line);border-radius:1.2vh;
+    padding:1.3vh 1.4vh;flex:1;display:flex;flex-direction:column;justify-content:center}
+  .cell .k{font-size:1.8vh;color:var(--dim);letter-spacing:.16em;font-weight:600}
+  .cell .v{font-size:5vh;font-weight:800;line-height:1.05;margin-top:.3vh}
+  .cell .v.sm{font-size:4.4vh}
+
+  /* ================= デルタ ================= */
+  #deltaWrap{padding:0 1.4vw .6vh;flex:0 0 auto}
+  #deltaBar{position:relative;height:3.4vh;background:#0d0f12;border:1px solid var(--line);
+    border-radius:.8vh;overflow:hidden}
+  #deltaFill{position:absolute;top:0;bottom:0;left:50%;width:0;background:var(--green);
+    transition:width .08s linear,background .1s}
+  #deltaMid{position:absolute;left:50%;top:0;bottom:0;width:2px;background:#3a4150;transform:translateX(-1px)}
+  #deltaTxt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:2.2vh;font-weight:800;letter-spacing:.05em;text-shadow:0 1px 3px #000}
+
+  /* ================= 下段 ================= */
+  #bottom{display:grid;grid-template-columns:1fr 1fr 1fr 1.2fr;gap:1vw;
+    padding:0 1.4vw 1vh;align-items:end;flex:0 0 auto}
+  .pill{background:var(--panel);border:1px solid var(--line);border-radius:1vh;
+    padding:.7vh 1vh;text-align:center}
+  .pill .k{font-size:1.5vh;color:var(--dim);letter-spacing:.14em;font-weight:600}
+  .pill .v{font-size:2.9vh;font-weight:800;margin-top:.1vh}
+  #tyres{display:grid;grid-template-columns:1fr 1fr;gap:.5vh;width:100%}
+  .ty{height:2.6vh;border-radius:.5vh;background:#12151a;display:flex;
+    align-items:center;justify-content:center;font-size:1.6vh;font-weight:700;
+    border:1px solid var(--line)}
+
+  /* ================= 状態オーバーレイ ================= */
+  #status{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:2vh;background:rgba(0,0,0,.92);z-index:50;text-align:center;padding:6vw}
+  #status h1{font-size:5vh;font-weight:800}
+  #status p{font-size:2.4vh;color:var(--dim);max-width:34em;line-height:1.6}
+  #status.hide{display:none}
+  .dot{width:1.4vh;height:1.4vh;border-radius:50%;background:var(--red);
+    display:inline-block;vertical-align:middle;margin-right:.6vh}
+
+  /* ================= 画面全体の発光 ================= */
+  #glow{position:fixed;inset:0;z-index:40;pointer-events:none;opacity:0;
+    box-shadow:inset 0 0 16vh 3vh rgba(255,45,45,.95);
+    background:radial-gradient(ellipse at center,
+      rgba(255,45,45,0) 42%, rgba(255,45,45,.10) 72%, rgba(255,45,45,.30) 100%);
+    transition:opacity .06s linear;will-change:opacity}
+  #glow.flash{animation:glowFlash .13s steps(1,end) infinite}
+  @keyframes glowFlash{
+    0%,49%{opacity:1}
+    50%,100%{opacity:.18}
+  }
+
+  /* ================= ツールバー ================= */
+  #tools{position:fixed;top:.5vh;right:.8vw;z-index:60;display:flex;gap:.6vw}
+  #tools button{background:#141821;color:var(--dim);border:1px solid var(--line);
+    border-radius:.8vh;padding:.6vh 1.2vh;font-size:1.6vh;font-weight:700;opacity:.35}
+  #tools button:active{opacity:1}
+
+  /* ================= 設定パネル ================= */
+  #setup{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.985);
+    display:none;flex-direction:column;padding:3vh 5vw;overflow-y:auto}
+  #setup.show{display:flex}
+  #setup h2{font-size:3vh;font-weight:800;margin-bottom:.5vh}
+  #setup .carname{font-size:1.9vh;color:var(--dim);margin-bottom:2.4vh}
+  .row{display:flex;align-items:center;gap:1.4vw;padding:1.5vh 0;border-bottom:1px solid #191d24}
+  .row .lab{flex:1;font-size:2.2vh;font-weight:700}
+  .row .sub{display:block;font-size:1.6vh;color:var(--dim);font-weight:500;margin-top:.3vh}
+  .seg{display:flex;border:1px solid var(--line);border-radius:.8vh;overflow:hidden}
+  .seg button{background:#12151a;color:var(--dim);border:0;padding:1.2vh 2.4vh;
+    font-size:2vh;font-weight:700}
+  .seg button.act{background:var(--cyan);color:#04121a}
+  .spin{display:flex;align-items:center;gap:1vw}
+  .spin button{width:6vh;height:6vh;border-radius:.8vh;background:#12151a;color:var(--txt);
+    border:1px solid var(--line);font-size:3vh;font-weight:800;line-height:1}
+  .spin .num{min-width:11vh;text-align:center;font-size:2.6vh;font-weight:800;
+    font-variant-numeric:tabular-nums}
+  .spin .num.auto{color:var(--dim)}
+  .spin .tag{width:7vh;font-size:1.5vh;font-weight:800;letter-spacing:.08em;
+    text-align:center;padding:.5vh 0;border-radius:.5vh;background:#1a2028;color:var(--dim)}
+  .spin .tag.man{background:var(--cyan);color:#04121a}
+  #setup .foot{display:flex;gap:2vw;margin-top:3vh;padding-bottom:4vh}
+  #setup .foot button{flex:1;padding:2vh;border-radius:1vh;font-size:2.2vh;font-weight:800;
+    border:1px solid var(--line);background:#12151a;color:var(--txt)}
+  #setup .foot button.primary{background:var(--cyan);color:#04121a;border-color:var(--cyan)}
+
+  .warn{color:var(--red)!important}
+  #rotate{display:none}
+  @media (orientation:portrait){
+    #rotate{position:fixed;inset:0;background:#000;z-index:80;display:flex;
+      align-items:center;justify-content:center;flex-direction:column;gap:3vh;
+      font-size:5vw;color:var(--dim);text-align:center;padding:10vw}
+  }
+</style>
+</head>
+<body class="meter-arc">
+<div id="rotate">📱↻<br>横向きにしてください</div>
+
+<div id="tools">
+  <button id="setBtn">設定</button>
+  <button id="fsBtn">全画面</button>
+</div>
+
+<div id="glow"></div>
+
+<div id="app">
+  <div id="lights"></div>
+
+  <div id="tachBar">
+    <div id="tbRed"></div><div id="tbFill"></div><div id="tbTicks"></div>
+  </div>
+  <div id="boostBar"><div id="bbFill"></div><div id="bbLab">BOOST</div></div>
+
+  <div id="main">
+    <div class="col">
+      <div class="speed"><span id="speed">0</span><small>KM / H</small></div>
+      <div id="hbars">
+        <div class="hbar"><span>THR</span><div class="track"><i id="hThr"></i></div></div>
+        <div class="hbar"><span>BRK</span><div class="track"><i id="hBrk"></i></div></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div id="meterWrap">
+        <canvas id="arcCv"></canvas>
+        <div id="gearBox">
+          <div id="gear">N</div>
+          <div id="rpmtxt">0 RPM</div>
+          <div id="chips">
+            <div class="chip" id="chBoost"><b>BOOST</b><span>—</span>
+              <div class="bar"><i></i></div></div>
+            <div class="chip" id="chFuel"><b>FUEL</b><span>—</span>
+              <div class="bar"><i></i></div></div>
+            <div class="chip" id="chErs"><b>ERS</b><span>—</span>
+              <div class="bar"><i></i></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col stack">
+      <div class="cell"><div class="k">LAST</div><div class="v sm" id="last">--:--.---</div></div>
+      <div class="cell"><div class="k">BEST</div><div class="v sm" id="best">--:--.---</div></div>
+      <div class="cell"><div class="k">CURRENT</div><div class="v sm" style="color:var(--cyan)" id="cur">--:--.---</div></div>
+    </div>
+  </div>
+
+  <div id="deltaWrap">
+    <div id="deltaBar">
+      <div id="deltaFill"></div><div id="deltaMid"></div>
+      <div id="deltaTxt">DELTA --.---</div>
+    </div>
+  </div>
+
+  <div id="bottom">
+    <div class="pill"><div class="k">LAP</div><div class="v" id="lap">1</div></div>
+    <div class="pill"><div class="k">FUEL L</div><div class="v" id="fuel">--</div></div>
+    <div class="pill"><div class="k">LAPS LEFT</div><div class="v" id="lapsleft">--</div></div>
+    <div class="pill" style="padding:.5vh"><div id="tyres">
+      <div class="ty" id="ty0">--</div><div class="ty" id="ty1">--</div>
+      <div class="ty" id="ty2">--</div><div class="ty" id="ty3">--</div>
+    </div></div>
+  </div>
+</div>
+
+<!-- ================= 設定 ================= -->
+<div id="setup">
+  <h2>メーター設定</h2>
+  <div class="carname">現在の車両: <b id="setCar">—</b>（設定は車両ごとに保存されます）</div>
+
+  <div class="row">
+    <div class="lab">メーター形状<span class="sub">円弧タコメーター / 画面上部の横バー</span></div>
+    <div class="seg" id="segMeter">
+      <button data-v="arc">円弧</button><button data-v="bar">横バー</button>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="lab">レッドゾーン開始<span class="sub">この回転数から赤く発光します</span></div>
+    <div class="spin" data-key="redline">
+      <button data-d="-500">−</button><div class="num">—</div><button data-d="500">＋</button>
+      <div class="tag">自動</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="lab">シフトポイント<span class="sub">ランプ全灯＋フラッシュ＋シフト音</span></div>
+    <div class="spin" data-key="shift">
+      <button data-d="-500">−</button><div class="num">—</div><button data-d="500">＋</button>
+      <div class="tag">自動</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="lab">ランプ点灯開始<span class="sub">ここから順にランプが点いていきます</span></div>
+    <div class="spin" data-key="lampStart">
+      <button data-d="-500">−</button><div class="num">—</div><button data-d="500">＋</button>
+      <div class="tag">自動</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="lab">画面全体の発光<span class="sub">レッドゾーンで画面の縁が赤く光り、シフトポイントで点滅します</span></div>
+    <div class="seg" id="segGlow">
+      <button data-v="strong">強</button><button data-v="soft">弱</button><button data-v="off">OFF</button>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="lab">シフトフラッシュの色<span class="sub">シフトポイントでランプとギアが光る色</span></div>
+    <div class="seg" id="segFlash">
+      <button data-v="blue">青</button><button data-v="red">赤</button>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="lab">シフト音<span class="sub">シフトポイントでビープを鳴らす</span></div>
+    <div class="seg" id="segSound">
+      <button data-v="on">ON</button><button data-v="off">OFF</button>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="lab">音量</div>
+    <div class="spin" data-key="volume">
+      <button data-d="-10">−</button><div class="num">—</div><button data-d="10">＋</button>
+    </div>
+  </div>
+
+  <div class="foot">
+    <button id="btnAuto">この車を自動設定に戻す</button>
+    <button id="btnTest">音をテスト</button>
+    <button class="primary" id="btnClose">閉じる</button>
+  </div>
+</div>
+
+<div id="status">
+  <h1><span class="dot"></span>接続中…</h1>
+  <p id="statusMsg">ゲームPCのブリッジに接続しています</p>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ===================== 設定 ===================== */
+  const LAMPS = 14;
+  const STORE_KEY = 'acdash-claude-settings';
+  const AUTO = {redline:0.90, shift:0.97, lampStart:0.78};  // maxRpm に対する既定比率
+
+  let cfg = {meter:'arc', sound:true, volume:60, glow:'strong', flashColor:'blue', cars:{}};
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) cfg = Object.assign(cfg, JSON.parse(raw));
+    if (!cfg.cars) cfg.cars = {};
+  }catch(e){}
+  function save(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(cfg)); }catch(e){} }
+
+  let carKey = '';          // 現在の車両（設定のキー）
+  let maxRpm = 8000;
+
+  /** 車ごとの実効しきい値。手動上書きが無ければ maxRpm から自動算出。 */
+  function thresholds(){
+    const o = cfg.cars[carKey] || {};
+    return {
+      redline:   o.redline   || Math.round(maxRpm * AUTO.redline   / 100) * 100,
+      shift:     o.shift     || Math.round(maxRpm * AUTO.shift     / 100) * 100,
+      lampStart: o.lampStart || Math.round(maxRpm * AUTO.lampStart / 100) * 100,
+      manual: o
+    };
+  }
+
+  /* ===================== ランプ生成 ===================== */
+  const lightsEl = document.getElementById('lights');
+  const lamps = [];
+  for (let i = 0; i < LAMPS; i++){
+    const d = document.createElement('div');
+    d.className = 'lamp';
+    lightsEl.appendChild(d); lamps.push(d);
+  }
+  const lampColor = i => {
+    const r = i / (LAMPS - 1);
+    return r < 0.45 ? '#25d366' : (r < 0.78 ? '#ffcc00' : '#ff2d2d');
+  };
+
+  /* ===================== DOM ===================== */
+  const $ = id => document.getElementById(id);
+  const el = {
+    speed:$('speed'), gear:$('gear'), rpm:$('rpmtxt'),
+    last:$('last'), best:$('best'), cur:$('cur'),
+    dFill:$('deltaFill'), dTxt:$('deltaTxt'),
+    lap:$('lap'), fuel:$('fuel'), lapsleft:$('lapsleft'),
+    thr:$('hThr'), brk:$('hBrk'),
+    ty:[$('ty0'),$('ty1'),$('ty2'),$('ty3')],
+    status:$('status'), statusMsg:$('statusMsg'),
+    statusH:document.querySelector('#status h1'),
+    tbFill:$('tbFill'), tbRed:$('tbRed'), tbTicks:$('tbTicks'),
+    arc:$('arcCv'), glow:$('glow'),
+    chBoost:$('chBoost'), chFuel:$('chFuel'), chErs:$('chErs'),
+    boostBar:$('boostBar'), bbFill:$('bbFill'), bbLab:$('bbLab')
+  };
+  const chipVal = el => el.querySelector('span');
+  const chipBar = el => el.querySelector('i');
+
+  /* ===================== 音 ===================== */
+  let actx = null;
+  function unlockAudio(){
+    if (actx) return;
+    try{
+      actx = new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === 'suspended') actx.resume();
+    }catch(e){ actx = null; }
+  }
+  document.addEventListener('touchstart', unlockAudio, {once:false, passive:true});
+  document.addEventListener('click', unlockAudio);
+
+  function beep(freq, ms){
+    if (!actx || !cfg.sound) return;
+    try{
+      const t = actx.currentTime;
+      const osc = actx.createOscillator(), gain = actx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(freq, t);
+      const v = Math.max(0, Math.min(1, cfg.volume/100)) * 0.28;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(v, t + 0.006);
+      gain.gain.setValueAtTime(v, t + ms/1000 - 0.02);
+      gain.gain.linearRampToValueAtTime(0, t + ms/1000);
+      osc.connect(gain); gain.connect(actx.destination);
+      osc.start(t); osc.stop(t + ms/1000 + 0.02);
+    }catch(e){}
+  }
+  const flashHex = () => cfg.flashColor === 'red' ? '#ff2d2d' : '#2b6bff';
+
+  /* AC の turboBoost は車によって「0〜1の比率」だったり「bar実値」だったりする。
+     観測した最大値が 1.05 以下で maxTurboBoost があれば比率とみなして掛ける。 */
+  let boostRawMax = 0;
+  function boostInfo(d){
+    const raw = (typeof d.turbo === 'number' && isFinite(d.turbo)) ? Math.max(0, d.turbo) : 0;
+    if (raw > boostRawMax) boostRawMax = raw;
+    const maxT = (d.maxTurbo > 0) ? d.maxTurbo : 0;
+    const asRatio = (boostRawMax <= 1.05 && maxT > 0);
+    const bar = asRatio ? raw * maxT : raw;
+    const full = asRatio ? maxT : Math.max(maxT, boostRawMax, 0.4);
+    return {
+      has: (maxT > 0 || boostRawMax > 0.02),
+      bar: bar,
+      ratio: full > 0 ? Math.max(0, Math.min(1, bar / full)) : 0
+    };
+  }
+  let shiftArmed = true;      // シフト音の二重再生を防ぐラッチ
+  let redLatched = false;     // レッドゾーン表示のちらつき防止ラッチ
+
+  /* ===================== 円弧メーター ===================== */
+  const ARC_START = Math.PI * 0.75;      // 135°
+  const ARC_SWEEP = Math.PI * 1.5;       // 270°
+
+  function drawArc(rpm, th, inRed, boost){
+    const cv = el.arc;
+    const rect = cv.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.max(1, Math.round(rect.width*dpr)), h = Math.max(1, Math.round(rect.height*dpr));
+    if (cv.width !== w || cv.height !== h){ cv.width = w; cv.height = h; }
+    const c = cv.getContext('2d');
+    c.clearRect(0,0,w,h);
+
+    const cx = w/2, cy = h/2;
+    const lw = Math.max(6, Math.min(w,h) * 0.085);
+    const R = Math.min(w, h)/2 - lw/2 - 2*dpr;
+    if (R <= 0) return;
+
+    const ratio = Math.max(0, Math.min(1, rpm / maxRpm));
+    const a = v => ARC_START + ARC_SWEEP * Math.max(0, Math.min(1, v));
+
+    c.lineCap = 'butt';
+    // 目盛り（1000rpmごと）
+    c.lineWidth = 1.5*dpr; c.strokeStyle = 'rgba(255,255,255,.16)';
+    for (let r = 1000; r < maxRpm; r += 1000){
+      const ang = a(r/maxRpm);
+      const r1 = R + lw/2, r0 = R + lw/2 - lw*0.35;
+      c.beginPath();
+      c.moveTo(cx + Math.cos(ang)*r0, cy + Math.sin(ang)*r0);
+      c.lineTo(cx + Math.cos(ang)*r1, cy + Math.sin(ang)*r1);
+      c.stroke();
+    }
+    // 背景トラック
+    c.lineWidth = lw; c.strokeStyle = '#14181e';
+    c.beginPath(); c.arc(cx, cy, R, a(0), a(1)); c.stroke();
+    // レッドゾーン帯（未到達でも位置が分かるように薄く描く）
+    c.strokeStyle = 'rgba(255,45,45,.22)';
+    c.beginPath(); c.arc(cx, cy, R, a(th.redline/maxRpm), a(1)); c.stroke();
+    // シフトポイントのマーカー
+    const sAng = a(th.shift/maxRpm);
+    c.strokeStyle = flashHex(); c.lineWidth = 2.5*dpr;
+    c.beginPath();
+    c.moveTo(cx + Math.cos(sAng)*(R-lw/2), cy + Math.sin(sAng)*(R-lw/2));
+    c.lineTo(cx + Math.cos(sAng)*(R+lw/2), cy + Math.sin(sAng)*(R+lw/2));
+    c.stroke();
+
+    // 実測値
+    if (ratio > 0){
+      c.lineWidth = lw;
+      if (inRed){
+        c.strokeStyle = '#ff2d2d';
+        c.shadowColor = '#ff2d2d'; c.shadowBlur = lw*1.1;
+      } else {
+        c.strokeStyle = '#00e5ff';
+        c.shadowColor = 'rgba(0,229,255,.55)'; c.shadowBlur = lw*0.45;
+      }
+      c.beginPath(); c.arc(cx, cy, R, a(0), a(ratio)); c.stroke();
+      if (inRed){    // 二度塗りで発光を強める
+        c.beginPath(); c.arc(cx, cy, R, a(th.redline/maxRpm), a(ratio)); c.stroke();
+      }
+      c.shadowBlur = 0;
+    }
+
+    /* 内側リング = ターボブースト */
+    if (boost && boost.has){
+      const rIn = R - lw * 1.35, lwIn = lw * 0.42;
+      if (rIn > lwIn){
+        c.lineWidth = lwIn;
+        c.strokeStyle = '#15181d';
+        c.beginPath(); c.arc(cx, cy, rIn, a(0), a(1)); c.stroke();
+        if (boost.ratio > 0.002){
+          c.strokeStyle = '#ff9f0a';
+          c.shadowColor = 'rgba(255,159,10,.6)'; c.shadowBlur = lwIn * 0.9;
+          c.beginPath(); c.arc(cx, cy, rIn, a(0), a(boost.ratio)); c.stroke();
+          c.shadowBlur = 0;
+        }
+      }
+    }
+  }
+
+  /* ===================== 横バー ===================== */
+  let tickSig = '';
+  function updateBar(rpm, th, inRed){
+    const sig = maxRpm + ':' + th.redline + ':' + th.shift;
+    if (sig !== tickSig){       // 目盛りとレッドゾーンは変化時のみ作り直す
+      tickSig = sig;
+      let html = '';
+      for (let r = 1000; r < maxRpm; r += 1000){
+        html += '<span style="left:' + (r/maxRpm*100).toFixed(2) + '%" data-k="' +
+                (r/1000) + '"></span>';
+      }
+      html += '<span style="left:' + (th.shift/maxRpm*100).toFixed(2) +
+              '%;background:' + flashHex() + ';width:2px"></span>';
+      el.tbTicks.innerHTML = html;
+      el.tbRed.style.left = (th.redline/maxRpm*100).toFixed(2) + '%';
+    }
+    el.tbFill.style.width = Math.max(0, Math.min(100, rpm/maxRpm*100)) + '%';
+    el.tbFill.classList.toggle('red', inRed);
+  }
+
+  /* ===================== 描画ループ ===================== */
+  let latest = null, dirty = false;
+
+  function render(){
+    requestAnimationFrame(render);
+    if (!dirty || !latest) return;
+    dirty = false;
+    const d = latest;
+
+    if (!d.connected){
+      el.status.classList.remove('hide');
+      el.statusH.innerHTML = '<span class="dot"></span>' + (d.statusText || 'WAITING');
+      el.statusMsg.textContent = d.note || 'Assetto Corsa のセッションを開始してください';
+      return;
+    }
+    el.status.classList.add('hide');
+
+    /* 車両が変わったら設定キーを差し替え */
+    const key = d.car || 'default';
+    if (key !== carKey){ carKey = key; tickSig = ''; boostRawMax = 0; syncSetup(); }
+    if (d.maxRpm > 0 && d.maxRpm !== maxRpm){ maxRpm = d.maxRpm; tickSig = ''; syncSetup(); }
+
+    const th = thresholds();
+    const rpm = d.rpm;
+    /* レッドゾーン判定。境界付近でのちらつきを防ぐため復帰にヒステリシスを持たせる */
+    if (rpm >= th.redline) redLatched = true;
+    else if (rpm < th.redline - Math.max(80, maxRpm * 0.012)) redLatched = false;
+    const inRed = redLatched;
+    const atShift = rpm >= th.shift;
+
+    /* --- タイミングランプ --- */
+    lightsEl.classList.toggle('flash', atShift);
+    if (!atShift){
+      const span = Math.max(1, th.shift - th.lampStart);
+      const lit = rpm <= th.lampStart ? 0
+        : Math.round((rpm - th.lampStart) / span * LAMPS);
+      for (let i = 0; i < LAMPS; i++){
+        const on = i < lit, c = lampColor(i);
+        lamps[i].style.background = on ? c : '#14171c';
+        lamps[i].style.color = c;
+        lamps[i].classList.toggle('on', on);
+      }
+    }
+    /* --- シフト音（立ち上がりで1回だけ） --- */
+    if (atShift){
+      if (shiftArmed){ beep(1180, 90); shiftArmed = false; }
+    } else if (rpm < th.shift - Math.max(150, maxRpm*0.02)){
+      shiftArmed = true;                    // ヒステリシス付きで再武装
+    }
+
+    /* --- メーター --- */
+    const boost = boostInfo(d);
+    if (cfg.meter === 'arc') drawArc(rpm, th, inRed, boost);
+    else updateBar(rpm, th, inRed);
+
+    /* --- ブースト / 燃料 / ERS のチップ --- */
+    updateChips(d, boost);
+
+    /* --- 画面全体の発光（レッドゾーンで強まり、シフトポイントで点滅） --- */
+    const gmul = cfg.glow === 'strong' ? 1 : (cfg.glow === 'soft' ? 0.55 : 0);
+    if (gmul > 0 && inRed){
+      const span = Math.max(1, th.shift - th.redline);
+      const p = Math.max(0, Math.min(1, (rpm - th.redline) / span));
+      el.glow.style.opacity = ((0.3 + 0.7 * p) * gmul).toFixed(3);
+      el.glow.classList.toggle('flash', atShift);
+    } else {
+      el.glow.style.opacity = '0';
+      el.glow.classList.remove('flash');
+    }
+
+    /* --- 数値 --- */
+    el.speed.textContent = Math.round(d.speed);
+    el.gear.textContent = d.gear;
+    el.rpm.textContent = Math.round(rpm).toLocaleString() + ' RPM';
+    const fc = flashHex();
+    el.gear.style.color = atShift ? fc : (inRed ? '#ff2d2d' : '#f2f4f8');
+    el.rpm.style.color  = atShift ? fc : (inRed ? '#ff2d2d' : '#7c8595');
+
+    /* --- タイム --- */
+    el.cur.textContent  = d.curTimeStr;
+    el.last.textContent = d.lastTimeStr;
+    el.best.textContent = d.bestTimeStr;
+
+    /* --- デルタ --- */
+    if (d.delta == null){
+      el.dFill.style.width = '0';
+      el.dTxt.textContent = 'DELTA --.---';
+      el.dTxt.style.color = '#7c8595';
+    } else {
+      const v = Math.max(-3, Math.min(3, d.delta)), pct = Math.abs(v)/3*50;
+      el.dFill.style.width = pct + '%';
+      el.dFill.style.left = v < 0 ? (50-pct)+'%' : '50%';
+      el.dFill.style.background = v < 0 ? '#25d366' : '#ff2d2d';
+      el.dTxt.textContent = (d.delta>=0?'+':'') + d.delta.toFixed(3);
+      el.dTxt.style.color = '#fff';
+    }
+
+    /* --- 下段 --- */
+    el.lap.textContent = d.totalLaps > 0 ? d.lap + '/' + d.totalLaps : d.lap;
+    el.fuel.textContent = d.fuel != null ? d.fuel.toFixed(1) : '--';
+    if (d.lapsLeft != null){
+      el.lapsleft.textContent = d.lapsLeft.toFixed(1);
+      el.lapsleft.className = 'v' + (d.lapsLeft < 2 ? ' warn' : '');
+    } else { el.lapsleft.textContent = '--'; el.lapsleft.className = 'v'; }
+
+    el.thr.style.width = (d.throttle*100) + '%';
+    el.brk.style.width = (d.brake*100) + '%';
+
+    const core = d.tyre && d.tyre.core;
+    if (core) for (let i = 0; i < 4; i++){
+      const t = core[i];
+      el.ty[i].textContent = Math.round(t);
+      el.ty[i].style.background = tyreColor(t);
+      el.ty[i].style.color = (t > 68 && t < 105) ? '#04120a' : '#fff';
+    }
+  }
+  function updateChips(d, boost){
+    /* ターボ */
+    el.chBoost.classList.toggle('on', boost.has);
+    el.boostBar.classList.toggle('on', boost.has);
+    if (boost.has){
+      chipVal(el.chBoost).textContent = boost.bar.toFixed(2) + ' bar';
+      chipBar(el.chBoost).style.width = (boost.ratio * 100) + '%';
+      el.bbFill.style.width = (boost.ratio * 100) + '%';
+      el.bbLab.textContent = 'BOOST ' + boost.bar.toFixed(2) + ' bar';
+    }
+
+    /* 燃料 */
+    const hasFuel = (typeof d.fuel === 'number' && isFinite(d.fuel));
+    el.chFuel.classList.toggle('on', hasFuel);
+    if (hasFuel){
+      const v = chipVal(el.chFuel);
+      v.textContent = d.fuel.toFixed(1) + ' L';
+      const low = (d.lapsLeft != null && d.lapsLeft < 2);
+      v.style.color = low ? '#ff2d2d' : '';
+      const frac = d.maxFuel > 0 ? Math.max(0, Math.min(1, d.fuel / d.maxFuel)) : 0;
+      const bar = chipBar(el.chFuel);
+      bar.style.width = (frac * 100) + '%';
+      bar.style.background = low ? '#ff2d2d' : '#ffcc00';
+      el.chFuel.querySelector('b').textContent =
+        (d.lapsLeft != null) ? 'FUEL · 残り' + d.lapsLeft.toFixed(1) + '周' : 'FUEL';
+    }
+
+    /* KERS / ERS（AC には MGU 単体の値は無く、この ERS 系がその役割） */
+    const k = d.kers || null, e = d.ers || null;
+    const showKers = !!(d.hasKERS && k);
+    const showErs = !!(d.hasERS && (e || k));
+    el.chErs.classList.toggle('on', showKers || showErs);
+    if (showKers || showErs){
+      const lab = el.chErs.querySelector('b');
+      const val = chipVal(el.chErs);
+      const bar = chipBar(el.chErs);
+      let pct = null;
+      if (showKers && typeof k.charge === 'number'){
+        pct = Math.max(0, Math.min(100, k.charge * 100));
+      } else if (k && e && e.maxJ > 0){
+        pct = Math.max(0, Math.min(100, k.kj * 1000 / e.maxJ * 100));
+      } else if (k && k.maxJ > 0){
+        pct = Math.max(0, Math.min(100, k.kj * 1000 / k.maxJ * 100));
+      }
+      const charging = !!(e && e.isCharging);
+      const deploying = !!(k && k.input > 0.02);
+      lab.textContent = (showKers && !d.hasERS) ? 'KERS' : 'ERS';
+      let txt = (pct == null) ? '—' : pct.toFixed(0) + ' %';
+      if (e && e.powerLevels > 0) txt += '  P' + e.power;
+      val.textContent = txt;
+      val.style.color = deploying ? '#00e5ff' : (charging ? '#25d366' : '');
+      bar.style.width = (pct == null ? 0 : pct) + '%';
+      bar.classList.toggle('charging', charging && !deploying);
+    }
+  }
+
+  function tyreColor(t){
+    if (t < 55) return '#1b3a6b';
+    if (t < 70) return '#2b6bff';
+    if (t < 95) return '#25d366';
+    if (t < 110) return '#ffcc00';
+    return '#ff2d2d';
+  }
+  requestAnimationFrame(render);
+
+  /* ===================== 設定パネル ===================== */
+  function applyMeterClass(){
+    document.body.classList.toggle('meter-arc', cfg.meter === 'arc');
+    document.body.classList.toggle('meter-bar', cfg.meter === 'bar');
+  }
+  function applyFlashClass(){
+    document.body.classList.toggle('flash-red', cfg.flashColor === 'red');
+  }
+  applyMeterClass();
+  applyFlashClass();
+
+  function syncSetup(){
+    $('setCar').textContent = carKey || '—';
+    const th = thresholds();
+    document.querySelectorAll('#segMeter button').forEach(b =>
+      b.classList.toggle('act', b.dataset.v === cfg.meter));
+    document.querySelectorAll('#segSound button').forEach(b =>
+      b.classList.toggle('act', (b.dataset.v === 'on') === !!cfg.sound));
+    document.querySelectorAll('#segGlow button').forEach(b =>
+      b.classList.toggle('act', b.dataset.v === cfg.glow));
+    document.querySelectorAll('#segFlash button').forEach(b =>
+      b.classList.toggle('act', b.dataset.v === cfg.flashColor));
+    document.querySelectorAll('.spin').forEach(sp => {
+      const k = sp.dataset.key, num = sp.querySelector('.num');
+      if (k === 'volume'){ num.textContent = cfg.volume + ' %'; num.classList.remove('auto'); return; }
+      const manual = th.manual[k];
+      num.textContent = th[k].toLocaleString();
+      num.classList.toggle('auto', !manual);
+      const tag = sp.querySelector('.tag');
+      if (tag){ tag.textContent = manual ? '手動' : '自動'; tag.classList.toggle('man', !!manual); }
+    });
+  }
+
+  document.querySelectorAll('#segMeter button').forEach(b => b.onclick = () => {
+    cfg.meter = b.dataset.v; applyMeterClass(); save(); syncSetup(); dirty = true;
+  });
+  document.querySelectorAll('#segFlash button').forEach(b => b.onclick = () => {
+    cfg.flashColor = b.dataset.v; applyFlashClass(); save(); syncSetup();
+    tickSig = ''; dirty = true;
+  });
+  document.querySelectorAll('#segGlow button').forEach(b => b.onclick = () => {
+    cfg.glow = b.dataset.v; save(); syncSetup(); dirty = true;
+    if (cfg.glow === 'off'){ el.glow.style.opacity = '0'; el.glow.classList.remove('flash'); }
+  });
+  document.querySelectorAll('#segSound button').forEach(b => b.onclick = () => {
+    cfg.sound = (b.dataset.v === 'on'); save(); syncSetup();
+    if (cfg.sound){ unlockAudio(); beep(1180, 80); }
+  });
+  document.querySelectorAll('.spin button').forEach(b => b.onclick = () => {
+    const sp = b.parentElement, k = sp.dataset.key, delta = parseInt(b.dataset.d, 10);
+    if (k === 'volume'){
+      cfg.volume = Math.max(0, Math.min(100, cfg.volume + delta));
+    } else {
+      const th = thresholds();
+      if (!cfg.cars[carKey]) cfg.cars[carKey] = {};
+      cfg.cars[carKey][k] = Math.max(500, Math.min(30000, th[k] + delta));
+    }
+    save(); syncSetup(); tickSig = ''; dirty = true;
+  });
+  $('btnAuto').onclick = () => { delete cfg.cars[carKey]; save(); syncSetup(); tickSig=''; dirty = true; };
+  $('btnTest').onclick = () => { unlockAudio(); beep(1180, 90); };
+  $('btnClose').onclick = () => $('setup').classList.remove('show');
+  $('setBtn').onclick = () => { unlockAudio(); syncSetup(); $('setup').classList.add('show'); };
+
+  /* ===================== 全画面 / スリープ防止 ===================== */
+  $('fsBtn').addEventListener('click', async () => {
+    try{
+      if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+      else await document.exitFullscreen();
+    }catch(e){}
+    try{ if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape'); }catch(e){}
+  });
+  let wakeLock = null;
+  async function keepAwake(){
+    try{ if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); }catch(e){}
+  }
+  keepAwake();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') keepAwake();
+  });
+  window.addEventListener('resize', () => { tickSig = ''; dirty = true; });
+
+  /* ===================== WebSocket ===================== */
+  let ws = null, retry = 0;
+  function connect(){
+    const url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
+    ws = new WebSocket(url);
+    ws.onopen = () => { retry = 0; };
+    ws.onmessage = ev => { try{ latest = JSON.parse(ev.data); dirty = true; }catch(e){} };
+    ws.onclose = () => {
+      latest = {connected:false, statusText:'切断', note:'ブリッジとの接続が切れました。再接続しています…'};
+      dirty = true;
+      retry = Math.min(retry + 1, 10);
+      setTimeout(connect, 400 + retry * 300);
+    };
+    ws.onerror = () => { try{ ws.close(); }catch(e){} };
+  }
+  connect();
+  syncSetup();
+})();
+</script>
+</body>
+</html>
