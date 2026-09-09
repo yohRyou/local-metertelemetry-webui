@@ -49,12 +49,28 @@
   <div class="status"><span id="dot"></span><span>ブリッジ: <span id="st">接続中…</span></span></div>
 
   <div class="url">
-    このページのURL: <code id="here">—</code><br>
-    他の端末では同じURLの <code>/mobile</code> または <code>/engineer</code> を開いてください。
+    このPCのアドレス: <code id="here">—</code><br>
+    他の端末では <code id="hereMobile">—</code> または
+    <code id="hereEng">—</code> を開いてください。
   </div>
 </div>
 <script>
-  document.getElementById('here').textContent = location.origin;
+  /* localhost で開かれていても、他端末に伝えられる実IPを出す */
+  (function(){
+    const set = (base) => {
+      document.getElementById('here').textContent = base;
+      document.getElementById('hereMobile').textContent = base + '/mobile';
+      document.getElementById('hereEng').textContent = base + '/engineer';
+    };
+    set(location.origin);
+    fetch('/info.json', {cache:'no-store'})
+      .then(r => r.ok ? r.json() : null)
+      .then(j => {
+        if (j && j.ip && !String(j.ip).startsWith('127.'))
+          set('http://' + j.ip + ':' + (j.port || location.port));
+      })
+      .catch(() => {});
+  })();
   (function c(){
     const ws = new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');
     ws.onmessage = e => {

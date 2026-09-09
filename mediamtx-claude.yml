@@ -1,0 +1,39 @@
+# mediamtx-claude.yml
+# ---------------------------------------------------------------------------
+# OBS から映像を受け取り、エンジニア画面へ WebRTC で配るための最小設定。
+#
+#   使い方: mediamtx.exe と同じフォルダに置き、名前を mediamtx.yml に変えるか
+#           mediamtx.exe mediamtx-claude.yml と指定して起動する。
+#
+#   ※ MediaMTX のバージョンによっては項目名が違うことがあります。
+#     起動時に「unknown parameter」と言われたら、その行を消してください。
+#     このソフトは MediaMTX の既定設定のままでも動きます。
+# ---------------------------------------------------------------------------
+
+logLevel: info
+
+# ---- WebRTC（エンジニア画面が受け取る本命の経路） ----
+webrtc: yes
+webrtcAddress: :8889              # ブラウザが接続する先。8889/TCP を開けること
+webrtcLocalUDPAddress: :8189      # 映像そのものが流れる。8189/UDP を開けること
+webrtcAllowOrigin: '*'            # 別ポート(:8720)のダッシュボードから読むので必要
+
+# ---- HLS（iPad / iPhone の Safari 向けフォールバック。遅延は数秒） ----
+hls: yes
+hlsAddress: :8888
+hlsAllowOrigin: '*'
+hlsVariant: lowLatency
+
+# ---- RTMP（WHIP がうまくいかない時の予備。OBS の「カスタム」で
+#      rtmp://<ゲームPCのIP>/ac に配信できる。ただし音声は WebRTC に渡らない） ----
+rtmp: yes
+rtmpAddress: :1935
+
+# ---- 使わないので止める ----
+rtsp: no
+srt: no
+
+paths:
+  # OBS の配信先 URL は http://<ゲームPCのIP>:8889/ac/whip になる
+  ac:
+    source: publisher

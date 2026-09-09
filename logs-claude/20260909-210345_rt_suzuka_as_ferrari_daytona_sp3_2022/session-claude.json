@@ -1,0 +1,34 @@
+{
+ "id": "20260909-210345_rt_suzuka_as_ferrari_daytona_sp3_2022",
+ "started": "2026-09-09 21:03:45",
+ "track": "rt_suzuka",
+ "layout": "",
+ "car": "as_ferrari_daytona_sp3_2022",
+ "driver": "youRyou youRyou",
+ "session": "PRACTICE",
+ "rate": 60,
+ "laps": [
+  {
+   "n": 1,
+   "file": "lap001.jsonl.gz",
+   "ms": 167096,
+   "time": "2:47.096",
+   "valid": false,
+   "partial": false,
+   "pit": true,
+   "frames": 9827,
+   "bytes": 4255859
+  },
+  {
+   "n": 2,
+   "file": "lap002.jsonl.gz",
+   "ms": 0,
+   "time": "—",
+   "valid": false,
+   "partial": true,
+   "pit": false,
+   "frames": 860,
+   "bytes": 399802
+  }
+ ]
+}

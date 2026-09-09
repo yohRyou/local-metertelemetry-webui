@@ -32,6 +32,8 @@ import struct
 import sys
 import time
 
+import logger_claude
+from logger_claude import TelemetryLoggerClaude
 from ac_sharedmem_claude import (
     ACSharedMemory,
     SPageFilePhysics,
@@ -47,8 +49,10 @@ from ac_sharedmem_claude import (
 # 読めてしまうため、更新の停止で「落ちた」ことを検知する。
 STALE_SECONDS = 5.0
 
-WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web-claude")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+WEB_DIR = os.path.join(BASE_DIR, "web-claude")
 TRACKS_DIR = os.path.join(WEB_DIR, "tracks-claude")
+LOGS_DIR = os.path.join(BASE_DIR, "logs-claude")
 WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
 GEAR_NAMES = ["R", "N", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
@@ -105,11 +109,17 @@ class LapTrackerClaude:
 
         # 現在ラップのサンプル記録
         if valid and 0.0 <= norm_pos <= 1.0 and cur_time_ms > 0:
-            idx = min(self.SAMPLES - 1, int(norm_pos * self.SAMPLES))
+            x = norm_pos * self.SAMPLES
+            idx = min(self.SAMPLES - 1, int(x))
             if self.cur[idx] is None:
                 self.cur[idx] = cur_time_ms
             if self.ref is not None:
-                delta = (cur_time_ms - self.ref[idx]) / 1000.0
+                # 区間の刻み（1周/1000）そのままだとデルタが段々に跳ねるので、
+                # 前後のサンプルを線形補間して滑らかにする。
+                a = self.ref[idx]
+                b = self.ref[min(self.SAMPLES - 1, idx + 1)]
+                ref_t = a + (b - a) * (x - idx)
+                delta = (cur_time_ms - ref_t) / 1000.0
 
         self.last_norm = norm_pos
         self.last_lap_ms = last_time_ms
@@ -604,7 +614,8 @@ class BridgeServerClaude:
     }
 
     def __init__(self, source, host="0.0.0.0", port=8720, rate=60,
-                 open_browser=False, ac_path=None):
+                 open_browser=False, ac_path=None, log_dir=LOGS_DIR,
+                 log_enabled=True):
         self.source = source
         self.tracks = TrackMapProviderClaude(ac_path)
         self.host = host
@@ -614,6 +625,9 @@ class BridgeServerClaude:
         self.latest = {"connected": False, "statusText": "STARTING"}
         self.tick = asyncio.Event()
         self.clients = 0
+        self.log_dir = log_dir
+        self.logger = TelemetryLoggerClaude(log_dir, enabled=log_enabled,
+                                            dumps=json_dumps_claude)
 
     # -- ポーリングループ ---------------------------------------------------
     async def poll_loop(self):
@@ -625,6 +639,11 @@ class BridgeServerClaude:
             except Exception as exc:
                 self.latest = {"connected": False, "statusText": "ERROR",
                                "note": str(exc)}
+            # 記録は「rec」を足す前のフレームを渡す。書き出しは別スレッドで
+            # 後から行われるので、同じ dict に足すと記録側にも混ざってしまう。
+            # 配信用は rec を足した別の dict にする。
+            self.logger.feed(self.latest)
+            self.latest = dict(self.latest, rec=self.logger.status())
             self.tick.set()
             self.tick.clear()
             next_t += interval
@@ -655,29 +674,129 @@ class BridgeServerClaude:
                 k, v = line.split(":", 1)
                 headers[k.strip().lower()] = v.strip()
 
-        path = path.split("?", 1)[0]
+        path, _, query = path.partition("?")
 
         if path == "/ws" and headers.get("upgrade", "").lower() == "websocket":
             await self.serve_ws(reader, writer, headers)
         else:
-            await self.serve_http(writer, method, path)
+            await self.serve_http(writer, method, path, query)
+
+    # -- サーバー情報 ------------------------------------------------------
+    def info_json(self):
+        """画面側が「ゲームPCのIP」を知るための情報。localhost を出さないため。"""
+        ips = local_ips()
+        return json.dumps({
+            "ip": ips[0] if ips else "localhost",
+            "ips": ips,
+            "port": self.port,
+        }, ensure_ascii=False).encode("utf-8")
 
     # -- コースマップ ------------------------------------------------------
-    async def current_track_json(self):
-        """走行中のコース形状 JSON（バイト列）。無ければ None。"""
+    async def current_track_json(self, query=""):
+        """コース形状 JSON（バイト列）。無ければ None。
+
+        track= / layout= を指定すればそのコースを返す（過去ログの再生用）。
+        指定が無ければ現在走行中のコースを返す。
+        """
+        q = _qs(query)
         d = self.latest or {}
-        track = str(d.get("track") or "").strip()
-        layout = str(d.get("trackConfig") or "").strip()
+        track = str(q.get("track") or d.get("track") or "").strip()
+        layout = str(q.get("layout") if "track" in q
+                     else (d.get("trackConfig") or "")).strip()
         if not track:
             return None
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         # ファイル読み込みと解析はブロックするので別スレッドで
         return await loop.run_in_executor(None, self.tracks.get, track, layout)
 
+    # -- ロガー ------------------------------------------------------------
+    async def serve_log(self, writer, method, path, query):
+        """記録・再生まわりのエンドポイント。処理済みなら True。"""
+        loop = asyncio.get_running_loop()
+
+        if path in ("/log/start", "/log/stop", "/log/toggle", "/log/status"):
+            if path == "/log/start":
+                self.logger.set_recording(True)
+            elif path == "/log/stop":
+                self.logger.set_recording(False)
+            elif path == "/log/toggle":
+                self.logger.toggle()
+            await self._send_json(writer, self.logger.status())
+            return True
+
+        if path == "/logs.json":
+            sessions = await loop.run_in_executor(
+                None, logger_claude.list_sessions, self.log_dir)
+            await self._send_json(writer, {
+                "dir": self.log_dir,
+                "rec": self.logger.status(),
+                "sessions": sessions,
+            })
+            return True
+
+        if path == "/log/delete":
+            if method not in ("POST", "DELETE"):
+                await self._send_404(writer)
+                return True
+            sid = _qs(query).get("s", "")
+            ok = await loop.run_in_executor(
+                None, logger_claude.delete_session, self.log_dir, sid)
+            await self._send_json(writer, {"ok": bool(ok)})
+            return True
+
+        if path.startswith("/logs-data/") or path.startswith("/logs-csv/"):
+            csv_mode = path.startswith("/logs-csv/")
+            parts = path.split("/", 3)          # ['', 'logs-data', sess, file]
+            if len(parts) < 4:
+                await self._send_404(writer)
+                return True
+            sess = os.path.basename(parts[2])
+            name = os.path.basename(parts[3])
+            full = os.path.join(self.log_dir, sess, name)
+            if not name.endswith(".jsonl.gz") or not os.path.isfile(full):
+                await self._send_404(writer)
+                return True
+            if csv_mode:
+                body = await loop.run_in_executor(
+                    None, logger_claude.to_csv_bytes, full)
+                fname = (sess + "_" + name[:-9] + ".csv")
+                await self._send_bytes(
+                    writer, body, "text/csv; charset=utf-8",
+                    extra=[b"Content-Disposition: attachment; filename=\"" +
+                           fname.encode("ascii", "ignore") + b"\""])
+            else:
+                with open(full, "rb") as fh:
+                    body = fh.read()
+                # gzip のまま渡す。ブラウザ側が透過的に展開してくれる。
+                await self._send_bytes(
+                    writer, body, "application/x-ndjson; charset=utf-8",
+                    extra=[b"Content-Encoding: gzip"])
+            return True
+
+        return False
+
     # -- 静的ファイル ------------------------------------------------------
-    async def serve_http(self, writer, method, path):
-        if path == "/track.json":
-            blob = await self.current_track_json()
+    async def serve_http(self, writer, method, path, query=""):
+        if path.startswith("/log"):
+            if await self.serve_log(writer, method, path, query):
+                return
+        if path == "/favicon.ico":
+            # 用意していないので、ブラウザのコンソールに 404 を出さずに終わらせる
+            writer.write(b"HTTP/1.1 204 No Content\r\n"
+                         b"Cache-Control: max-age=86400\r\n"
+                         b"Connection: close\r\n\r\n")
+            try:
+                await writer.drain()
+            except Exception:
+                pass
+            writer.close()
+            return
+        if path == "/info.json":
+            await self._send_bytes(writer, self.info_json(),
+                                   "application/json; charset=utf-8")
+            return
+        elif path == "/track.json":
+            blob = await self.current_track_json(query)
             if blob is None:
                 await self._send_404(writer)
                 return
@@ -714,11 +833,19 @@ class BridgeServerClaude:
             pass
         writer.close()
 
-    async def _send_bytes(self, writer, body, ctype):
+    async def _send_json(self, writer, obj):
+        body = json.dumps(obj, ensure_ascii=False,
+                          default=_json_default).encode("utf-8")
+        await self._send_bytes(writer, body, "application/json; charset=utf-8")
+
+    async def _send_bytes(self, writer, body, ctype, extra=None):
+        head = (b"HTTP/1.1 200 OK\r\n"
+                b"Content-Type: " + ctype.encode() + b"\r\n"
+                b"Cache-Control: no-store\r\n")
+        for line in (extra or []):
+            head += line + b"\r\n"
         writer.write(
-            b"HTTP/1.1 200 OK\r\n"
-            b"Content-Type: " + ctype.encode() + b"\r\n"
-            b"Cache-Control: no-store\r\n"
+            head +
             b"Content-Length: " + str(len(body)).encode() + b"\r\n"
             b"Connection: close\r\n\r\n" + body)
         try:
@@ -777,9 +904,7 @@ class BridgeServerClaude:
         try:
             while not stop.is_set():
                 await self.tick.wait()
-                payload = json.dumps(
-                    self.latest, ensure_ascii=False,
-                    separators=(",", ":"), default=_json_default).encode("utf-8")
+                payload = json_dumps_claude(self.latest).encode("utf-8")
                 writer.write(ws_frame(payload))
                 await writer.drain()
         except Exception:
@@ -809,7 +934,10 @@ class BridgeServerClaude:
         import threading
         import webbrowser
 
-        url = "http://localhost:%d/" % self.port
+        # localhost ではなく LAN の IP で開く（そのままスマホに伝えられる）
+        ips = local_ips()
+        host = ips[0] if ips and not ips[0].startswith("127.") else "localhost"
+        url = "http://%s:%d/" % (host, self.port)
 
         def go():
             try:
@@ -830,6 +958,10 @@ class BridgeServerClaude:
         else:
             print("  モード     : LIVE（AC 共有メモリ）")
         print(f"  配信レート : {self.rate} Hz")
+        st = self.logger.status()
+        print("  記録       : %s  → %s"
+              % ("ON（走行を自動記録）" if st["on"] else "OFF（画面の REC で開始）",
+                 self.log_dir))
         print()
         print("  ブラウザで開く URL:")
         for ip in ips:
@@ -841,10 +973,46 @@ class BridgeServerClaude:
         print()
 
 
+def _qs(query):
+    """'s=abc&x=1' → {'s': 'abc', 'x': '1'}"""
+    import urllib.parse
+    out = {}
+    for k, v in urllib.parse.parse_qsl(query or "", keep_blank_values=True):
+        out[k] = v
+    return out
+
+
 def _json_default(o):
     if isinstance(o, float) and (math.isnan(o) or math.isinf(o)):
         return None
     return str(o)
+
+
+def _finite(o):
+    """NaN / Infinity を None に置き換える（JSON として不正になるのを防ぐ）。"""
+    if isinstance(o, float):
+        return o if math.isfinite(o) else None
+    if isinstance(o, dict):
+        return {k: _finite(v) for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [_finite(v) for v in o]
+    return o
+
+
+def json_dumps_claude(obj):
+    """WebSocket 配信とログ書き出しで使う JSON 化。
+
+    AC の共有メモリには稀に NaN / Inf が入る。Python の json は既定でそれを
+    NaN / Infinity と書いてしまい、ブラウザの JSON.parse が失敗して画面が
+    止まるので、失敗したときだけ全体を掃除してから書き直す。
+    """
+    try:
+        return json.dumps(obj, ensure_ascii=False, separators=(",", ":"),
+                          default=_json_default, allow_nan=False)
+    except ValueError:
+        return json.dumps(_finite(obj), ensure_ascii=False,
+                          separators=(",", ":"), default=_json_default,
+                          allow_nan=False)
 
 
 def local_ips():
@@ -879,6 +1047,11 @@ def main():
                     help="ゲーム無しで疑似データを配信")
     ap.add_argument("--open", action="store_true", dest="open_browser",
                     help="起動後このPCの既定ブラウザでポータルページを開く")
+    ap.add_argument("--no-log", action="store_true",
+                    help="テレメトリーの記録を最初から止めておく"
+                         "（画面の REC ボタンで後から開始できる）")
+    ap.add_argument("--log-dir", dest="log_dir", default=LOGS_DIR,
+                    help="ログの保存先フォルダ（既定: logs-claude）")
     ap.add_argument("--ac-path", dest="ac_path",
                     help="Assetto Corsa のインストールフォルダ"
                          "（コース形状の自動読み出しに使う。通常は自動検出）")
@@ -887,11 +1060,14 @@ def main():
     src = TelemetrySourceClaude(demo=args.demo)
     srv = BridgeServerClaude(src, host=args.host, port=args.port,
                              rate=args.rate, open_browser=args.open_browser,
-                             ac_path=args.ac_path)
+                             ac_path=args.ac_path, log_dir=args.log_dir,
+                             log_enabled=not args.no_log)
     try:
         asyncio.run(srv.run())
     except KeyboardInterrupt:
         print("\n[bridge] 停止しました")
+    finally:
+        srv.logger.close()
 
 
 if __name__ == "__main__":

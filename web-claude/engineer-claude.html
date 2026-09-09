@@ -41,7 +41,16 @@
     padding:9px 11px;min-height:0;display:flex;flex-direction:column}
   .card > h2{font-size:10px;letter-spacing:.18em;color:var(--dim);font-weight:700;
     margin-bottom:7px;flex:0 0 auto;text-transform:uppercase}
-  .colstack{display:flex;flex-direction:column;gap:8px;min-height:0}
+  .colstack{display:flex;flex-direction:column;gap:8px;min-height:0;
+    overflow-y:auto;overscroll-behavior:contain}
+
+  /* 左カラムの高さ配分。
+     Timing / Session は中身なりの高さ、G-G は縮んでもよい、
+     Track Map は最低限の高さを確保して潰れないようにする。
+     それでも入り切らないときはカラムをスクロールさせる（見切れを防ぐ）。 */
+  #cardTiming,#cardSession{flex:0 0 auto}
+  #cardMap{flex:1 1 auto;min-height:200px}
+  #cardGG{flex:0 1 auto;height:150px;min-height:96px}
 
   /* ---------- タイミング ---------- */
   .timeRow{display:flex;justify-content:space-between;align-items:baseline;
@@ -113,6 +122,270 @@
   .warn{color:var(--red)!important} .ok{color:var(--green)!important}
   .caution{color:var(--yellow)!important}
 
+  /* ---------- 表示モード切替 ---------- */
+  #views{display:flex;gap:3px;background:#12161d;border:1px solid var(--line);
+    border-radius:7px;padding:3px;flex:0 0 auto}
+  #views button{background:transparent;border:0;color:var(--dim);font-weight:800;
+    font-size:11px;letter-spacing:.08em;padding:5px 12px;border-radius:5px;
+    cursor:pointer;font-family:inherit}
+  #views button:hover{color:var(--txt);background:#1b2029}
+  #views button.act{background:var(--cyan);color:#07090c}
+
+  /* 集中モード：選んだカードだけを画面いっぱいに */
+  body.focus main{grid-template-columns:1fr;grid-template-rows:1fr}
+  body.focus #centerCol,body.focus #footer,body.focus .colstack{display:none}
+  body.focus .colstack.active{display:flex;flex-direction:row;gap:8px}
+  body.focus .card{display:none}
+  body.focus .card.show{display:flex!important;flex:1 1 0!important;
+    height:auto!important;min-width:0;min-height:0;padding:14px 18px}
+  body.focus .card > h2{font-size:12px;margin-bottom:12px}
+
+  /* 集中モードでは行を縦に均等配置して余白を詰める */
+  body.focus .kv{flex:1 1 auto;align-content:space-around}
+  body.focus .kv .k{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* レース情報を大きく */
+  body.view-race .timeRow{flex:1 1 auto;align-items:center}
+  body.view-race #deltaBig{font-size:clamp(46px,8vw,120px);padding:10px 0 6px}
+  body.view-race #deltaTrack{height:10px;margin-bottom:14px}
+  body.view-race .timeRow{padding:clamp(6px,1.2vh,16px) 0}
+  body.view-race .timeRow .k{font-size:clamp(11px,1vw,15px)}
+  body.view-race .timeRow .v{font-size:clamp(22px,3.2vw,46px)}
+  body.view-race .kv{font-size:clamp(15px,1.7vw,26px);gap:clamp(6px,1.4vh,18px) 16px}
+  body.view-race #tSec{font-size:clamp(20px,2.3vw,34px)!important}
+
+  /* 車両情報を大きく */
+  body.view-car .kv{font-size:clamp(13px,1.3vw,20px);gap:clamp(4px,.9vh,10px) 14px}
+  body.view-car #tyreGrid{flex:1 1 auto;grid-template-rows:1fr 1fr;gap:10px}
+  body.view-car .tyre{display:flex;flex-direction:column;justify-content:center;padding:10px 12px}
+  body.view-car .tyre .lbl{font-size:clamp(10px,1vw,14px);margin-bottom:7px}
+  body.view-car .tyre .core{font-size:clamp(26px,3.2vw,54px)}
+  body.view-car .imo{height:auto;margin:8px 0 7px}
+  body.view-car .imo div{font-size:clamp(10px,1.05vw,15px);padding:5px 0}
+  body.view-car .trow{font-size:clamp(11px,1.05vw,16px);line-height:1.8}
+  body.view-car .bar{height:5px}
+
+  /* ---------- 縦が狭いウィンドウ用の詰め ---------- */
+  @media (max-height:900px){
+    main{gap:6px;padding:6px}
+    .card{padding:7px 9px}
+    .card > h2{margin-bottom:5px}
+    #deltaBig{font-size:30px;padding:3px 0 1px}
+    #deltaTrack{height:5px;margin-bottom:4px}
+    .timeRow{padding:2px 0}
+    .timeRow .v{font-size:16px}
+    .kv{font-size:11px;gap:1px 8px}
+    #cardGG{height:120px}
+  }
+  @media (max-height:780px){
+    #deltaBig{font-size:25px}
+    .timeRow .v{font-size:15px}
+    .timeRow .k{font-size:9px}
+    .kv{font-size:10px}
+    #cardGG{height:100px}
+    #hero .v{font-size:24px}
+    #hero .v.small{font-size:18px}
+    #footer .stat .v{font-size:15px}
+    .tyre .core{font-size:20px}
+  }
+
+  /* ---------- 映像 ---------- */
+  #vidMiniBtn,#vidCfgBtn{background:#12161d;border:1px solid var(--line);color:var(--dim);
+    border-radius:7px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;
+    line-height:1;flex:0 0 auto;font-family:inherit}
+  #vidMiniBtn:hover,#vidCfgBtn:hover{color:var(--txt);background:#1b2029}
+  #vidMiniBtn.act{background:var(--cyan);color:#07090c;border-color:var(--cyan)}
+
+  /* 映像モードのカード（全画面） */
+  body:not(.view-video) #colVideo{display:none}
+  body.view-video #cardVideo{padding:8px 10px 10px}
+  body.view-video #cardVideo > h2{margin-bottom:6px}
+  #vidSlot{position:relative;flex:1 1 auto;min-height:0;display:flex}
+
+  /* 左上のフローティング小窓 */
+  #vidMini{position:fixed;top:52px;left:12px;z-index:60;width:360px;
+    background:var(--panel);border:1px solid var(--line);border-radius:9px;
+    box-shadow:0 10px 30px rgba(0,0,0,.55);overflow:hidden}
+  #vidMini.hide{display:none}
+  #vidMini.s{width:250px} #vidMini.m{width:360px} #vidMini.l{width:520px}
+  #vidMiniBar{display:flex;align-items:center;gap:7px;padding:5px 7px;
+    background:#12161d;border-bottom:1px solid var(--line);cursor:move;
+    touch-action:none;user-select:none}
+  #vidMiniBar .ttl{font-size:10px;font-weight:800;letter-spacing:.16em;color:var(--dim)}
+  #vidMiniBar .st{font-size:10px;color:var(--dim2);overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap;max-width:150px}
+  #vidMiniBar .sp{flex:1}
+  #vidMiniBar button{background:transparent;border:1px solid var(--line);color:var(--dim);
+    border-radius:4px;font-size:10px;font-weight:700;padding:3px 7px;cursor:pointer;
+    font-family:inherit}
+  #vidMiniBar button:hover{color:var(--txt);background:#1b2029}
+  #vidMiniBar button.act{background:var(--cyan);color:#07090c;border-color:var(--cyan)}
+  #vidMiniSlot{position:relative;display:flex;aspect-ratio:16/9;background:#000}
+
+  /* 映像本体（小窓とカードの間を行き来する） */
+  #vidStage{position:relative;flex:1 1 auto;min-width:0;min-height:0;
+    background:#000;border-radius:6px;overflow:hidden}
+  #vidMiniSlot #vidStage{border-radius:0}
+  #camVid{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
+
+  #vidOverlay{position:absolute;left:0;right:0;bottom:0;display:flex;
+    background:linear-gradient(to top,rgba(7,9,12,.9),rgba(7,9,12,0));
+    padding:22px 12px 8px;pointer-events:none}
+  body.novo #vidOverlay{display:none}
+  .vo{flex:1;min-width:0}
+  .vo b{display:block;font-size:9px;letter-spacing:.14em;color:#9aa6bb;font-weight:700}
+  .vo span{display:block;font-family:var(--mono);font-weight:800;line-height:1.15;
+    text-shadow:0 2px 6px #000;font-size:15px}
+  /* 小窓では情報を絞って小さく */
+  #vidMiniSlot .vo:nth-child(n+4){display:none}
+  #vidMiniSlot #vidOverlay{padding:16px 8px 5px}
+  #vidMiniSlot .vo b{font-size:8px}
+  #vidMiniSlot .vo span{font-size:13px}
+  body.view-video .vo span{font-size:clamp(20px,2.6vw,42px)}
+  body.view-video .vo b{font-size:11px}
+  body.view-video #vidOverlay{padding:30px 18px 12px}
+
+  /* iOS の自動再生ブロック時に出す再生ボタン */
+  #vidTap{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;gap:6px;
+    align-items:center;justify-content:center;background:rgba(7,9,12,.62);
+    cursor:pointer;text-align:center;padding:14px}
+  #vidTap.hide{display:none}
+  #vidTap .ico{width:64px;height:64px;border-radius:50%;background:var(--cyan);
+    color:#07090c;font-size:26px;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 6px 24px rgba(0,0,0,.5)}
+  #vidTap .txt{font-size:15px;font-weight:800}
+  #vidTap .sub{font-size:11px;color:var(--dim);line-height:1.6;max-width:22em}
+  #vidMiniSlot #vidTap .ico{width:38px;height:38px;font-size:16px}
+  #vidMiniSlot #vidTap .txt{font-size:11px}
+  #vidMiniSlot #vidTap .sub{display:none}
+  body.view-video #vidTap .ico{width:84px;height:84px;font-size:34px}
+  body.view-video #vidTap .txt{font-size:19px}
+
+  #vidHint{position:absolute;inset:0;display:flex;flex-direction:column;gap:7px;
+    align-items:center;justify-content:center;text-align:center;padding:16px;
+    color:var(--dim);font-size:12px;line-height:1.8;background:rgba(7,9,12,.8)}
+  #vidHint b{color:var(--txt);font-size:14px}
+  #vidHint code{background:#12161d;border:1px solid var(--line);border-radius:4px;
+    padding:2px 7px;color:var(--cyan);font-family:var(--mono);font-size:11px}
+  #vidHint.hide{display:none}
+  #vidMiniSlot #vidHint{font-size:10px;line-height:1.6;padding:8px;gap:3px}
+  #vidMiniSlot #vidHint b{font-size:11px}
+  #vidMiniSlot #vidHint code,#vidMiniSlot #vidHint br{display:none}
+  body.view-video #vidHint{font-size:15px}
+  body.view-video #vidHint b{font-size:18px}
+  body.view-video #vidHint code{font-size:14px}
+
+  #vidBar{display:flex;align-items:center;gap:8px;margin-top:8px;flex:0 0 auto}
+  #vidBar button{background:#12161d;border:1px solid var(--line);color:var(--txt);
+    border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;
+    font-family:inherit}
+  #vidBar button:hover{background:#1b2029}
+  #vidBar span{font-size:11px;color:var(--dim2);font-family:var(--mono);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #vidStatus.wait{color:var(--yellow)} #vidStatus.ok{color:var(--green)}
+  #vidStatus.err{color:var(--red)}
+
+  /* 映像設定ダイアログ */
+  #vidCfg{position:fixed;inset:0;background:rgba(7,9,12,.85);z-index:120;
+    display:none;align-items:center;justify-content:center;padding:24px}
+  #vidCfg.show{display:flex}
+  #vidCfg .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:24px 26px;width:min(520px,100%);max-height:90vh;overflow-y:auto}
+  #vidCfg h3{font-size:18px;font-weight:800;margin-bottom:6px}
+  #vidCfg .note{font-size:12px;color:var(--dim);line-height:1.7;margin-bottom:18px}
+  #vidCfg label{display:block;font-size:13px;font-weight:700;margin-bottom:16px}
+  #vidCfg label.chk{display:flex;align-items:center;gap:8px;font-weight:600}
+  #vidCfg input,#vidCfg select{display:block;width:100%;margin-top:6px;background:#12161d;
+    color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:9px 11px;
+    font-size:14px;font-family:var(--mono)}
+  #vidCfg input[type=checkbox]{width:auto;margin:0}
+  #vidCfg small{display:block;margin-top:5px;font-size:11px;color:var(--dim);
+    font-weight:500;line-height:1.6}
+  #vidCfg code{background:#12161d;border-radius:3px;padding:1px 5px;color:var(--cyan);
+    font-family:var(--mono)}
+  #vidCfg .btns{display:flex;gap:10px;margin-top:6px}
+  #vidCfg .btns button{flex:1;padding:11px;border-radius:7px;font-size:14px;font-weight:800;
+    border:1px solid var(--line);background:#12161d;color:var(--txt);cursor:pointer;
+    font-family:inherit}
+  #vidCfg .btns button.primary{background:var(--cyan);color:#07090c;border-color:var(--cyan)}
+
+  /* ---------- ログ / 再生 ---------- */
+  #recBtn,#logBtn{background:#12161d;border:1px solid var(--line);color:var(--dim);
+    font-size:12px;font-weight:800;padding:5px 10px;border-radius:6px;cursor:pointer;
+    font-family:inherit;white-space:nowrap}
+  #recBtn:hover,#logBtn:hover{color:var(--txt);background:#1b2029}
+  #recBtn.on{background:var(--red);border-color:var(--red);color:#fff}
+  #recBtn.on::before{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;
+    background:#fff;margin-right:6px;vertical-align:middle;animation:recBlink 1.4s infinite}
+  @keyframes recBlink{0%,45%{opacity:1}55%,100%{opacity:.15}}
+  #logBtn.act{background:var(--purple);border-color:var(--purple);color:#fff}
+
+  #logPanel{position:fixed;inset:0;background:rgba(7,9,12,.85);z-index:130;
+    display:none;align-items:center;justify-content:center;padding:24px}
+  #logPanel.show{display:flex}
+  #logPanel .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:22px 24px;width:min(880px,100%);max-height:88vh;display:flex;flex-direction:column}
+  #logPanel h3{font-size:18px;font-weight:800;margin-bottom:6px}
+  #logPanel .note{font-size:12px;color:var(--dim);line-height:1.7;margin-bottom:14px}
+  .lgTop{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+  .lgTop .st{font-size:12px;color:var(--dim);flex:1;min-width:180px}
+  .lgTop .st b{color:var(--txt)}
+  .lgTop button{background:#12161d;border:1px solid var(--line);color:var(--txt);
+    font-size:12px;font-weight:700;padding:7px 12px;border-radius:6px;cursor:pointer;
+    font-family:inherit}
+  .lgTop button.rec{background:var(--red);border-color:var(--red);color:#fff}
+  .lgCols{display:grid;grid-template-columns:1fr 1.25fr;gap:12px;min-height:0;flex:1}
+  .lgList{background:#0b0e13;border:1px solid var(--line);border-radius:8px;
+    overflow-y:auto;min-height:180px;max-height:46vh}
+  .lgList h4{position:sticky;top:0;background:#0b0e13;font-size:10px;letter-spacing:.16em;
+    color:var(--dim);padding:8px 10px;border-bottom:1px solid var(--line);z-index:1}
+  .lgRow{padding:8px 10px;border-bottom:1px solid #141920;cursor:pointer;font-size:12px}
+  .lgRow:hover{background:#12161d}
+  .lgRow.sel{background:#152030;box-shadow:inset 3px 0 0 var(--cyan)}
+  .lgRow .t1{font-weight:700;color:var(--txt)}
+  .lgRow .t2{color:var(--dim);font-size:11px;margin-top:2px}
+  .lgRow .acts{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+  .lgRow .acts a,.lgRow .acts button{background:#12161d;border:1px solid var(--line);
+    color:var(--dim);font-size:11px;font-weight:700;padding:3px 8px;border-radius:5px;
+    cursor:pointer;text-decoration:none;font-family:inherit}
+  .lgRow .acts button.go{background:var(--cyan);border-color:var(--cyan);color:#07090c}
+  .lgRow .acts button.ref{background:#12161d;border-color:var(--purple);color:var(--purple)}
+  .lgRow .acts button.ref.on{background:var(--purple);color:#fff}
+  .lgRow .acts button.del{border-color:#3a2126;color:#b45}
+  .lgRow .acts button.del.arm{background:var(--red);border-color:var(--red);color:#fff}
+  .lgRow .tag{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;
+    font-weight:800;margin-left:6px;background:#1b2029;color:var(--dim)}
+  .lgRow .tag.ok{background:#12331f;color:var(--green)}
+  .lgRow .tag.ng{background:#33201f;color:var(--red)}
+  #logPanel .btns{display:flex;gap:10px;margin-top:14px}
+  #logPanel .btns button{flex:1;padding:10px;border-radius:7px;font-size:14px;font-weight:800;
+    border:1px solid var(--line);background:#12161d;color:var(--txt);cursor:pointer;
+    font-family:inherit}
+  #logPanel .btns button.primary{background:var(--cyan);color:#07090c;border-color:var(--cyan)}
+
+  #repBar{position:fixed;left:0;right:0;bottom:0;z-index:90;display:flex;align-items:center;
+    gap:10px;padding:7px 12px;background:#0b0e13;border-top:1px solid var(--purple);
+    font-size:12px}
+  #repBar.hide{display:none}
+  body.replaying main{padding-bottom:54px}
+  #repBar button{background:#12161d;border:1px solid var(--line);color:var(--txt);
+    font-size:13px;font-weight:800;padding:5px 11px;border-radius:6px;cursor:pointer;
+    font-family:inherit;min-width:38px}
+  #repBar button.primary{background:var(--purple);border-color:var(--purple);color:#fff}
+  #repBar select{background:#12161d;color:var(--txt);border:1px solid var(--line);
+    border-radius:6px;padding:5px 7px;font-family:inherit;font-size:12px}
+  #repBar .name{font-weight:800;letter-spacing:.06em;color:var(--purple);white-space:nowrap}
+  #repBar .tm{font-family:var(--mono);color:var(--dim);white-space:nowrap}
+  #repBar .tm b{color:var(--txt)}
+  #repSeek{flex:1;min-width:120px;accent-color:var(--purple)}
+  #repLegend{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--dim);
+    white-space:nowrap}
+  #repLegend.hide{display:none}
+  #repLegend .sw{width:9px;height:9px;border-radius:2px;display:inline-block;margin-left:6px}
+  #repLegend .sw.g{background:var(--green)}
+  #repLegend .sw.r{background:var(--red)}
+  #repLegend .sw.p{background:transparent;border:2px solid var(--purple);border-radius:50%}
+
   /* ---------- オーバーレイ ---------- */
   #overlay{position:fixed;inset:0;background:rgba(7,9,12,.95);z-index:99;
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:40px}
@@ -128,6 +401,17 @@
   <div class="brand">AC · RACE ENGINEER</div>
   <div class="id"><span id="hCar">—</span><span id="hTrack">—</span></div>
   <div class="spacer"></div>
+  <div id="views">
+    <button data-v="all">全体</button>
+    <button data-v="map">コース</button>
+    <button data-v="race">レース</button>
+    <button data-v="car">車両</button>
+    <button data-v="video">映像</button>
+  </div>
+  <button id="recBtn" title="テレメトリーの記録を開始 / 停止">REC</button>
+  <button id="logBtn" title="記録したラップを開いて再生する">ログ</button>
+  <button id="vidMiniBtn" title="左上に小窓で映像を出す">小窓</button>
+  <button id="vidCfgBtn" title="映像の設定">⚙</button>
   <div id="flagBadge">NONE</div>
   <div class="hstat">SESSION<b id="hSession">—</b></div>
   <div class="hstat">AIR<b id="hAir">—</b></div>
@@ -138,8 +422,8 @@
 
 <main>
   <!-- ============ 左：タイミング ============ -->
-  <div class="colstack">
-    <div class="card">
+  <div class="colstack" id="colLeft">
+    <div class="card" id="cardTiming">
       <h2>Timing</h2>
       <div id="deltaBig">--.---</div>
       <div id="deltaTrack"><div id="deltaFill"></div></div>
@@ -149,7 +433,7 @@
       <div class="timeRow"><span class="k">LAST SECTOR</span><span class="v" style="font-size:15px" id="tSec">--.---</span></div>
     </div>
 
-    <div class="card">
+    <div class="card" id="cardSession">
       <h2>Session</h2>
       <div class="kv">
         <span class="k">ラップ</span><span class="v" id="sLap">1</span>
@@ -161,13 +445,13 @@
       </div>
     </div>
 
-    <div class="card canvasCard" style="flex:1">
+    <div class="card canvasCard" id="cardMap">
       <h2>Track Map</h2>
       <div class="legend" id="mapSrc" style="color:var(--dim2);font-weight:600">—</div>
-      <div class="cvbox" style="min-height:90px"><canvas id="mapCv"></canvas></div>
+      <div class="cvbox"><canvas id="mapCv"></canvas></div>
     </div>
 
-    <div class="card canvasCard" style="flex:0 0 auto;height:150px">
+    <div class="card canvasCard" id="cardGG">
       <h2>G-G Diagram</h2>
       <div class="cvbox"><canvas id="ggCv"></canvas></div>
     </div>
@@ -209,12 +493,12 @@
   </div>
 
   <!-- ============ 右：タイヤ / ブレーキ ============ -->
-  <div class="colstack">
-    <div class="card" style="flex:0 0 auto">
+  <div class="colstack" id="colRight">
+    <div class="card" id="cardTyres" style="flex:0 0 auto">
       <h2>Tyres</h2>
       <div id="tyreGrid"></div>
     </div>
-    <div class="card" style="flex:0 0 auto">
+    <div class="card" id="cardFuel" style="flex:0 0 auto">
       <h2>Fuel Strategy</h2>
       <div class="kv">
         <span class="k">残量</span><span class="v" id="fFuel">—</span>
@@ -224,7 +508,7 @@
       </div>
       <div class="bar" style="height:6px;margin-top:8px"><i id="fBar" style="background:var(--yellow)"></i></div>
     </div>
-    <div class="card" style="flex:1;min-height:0">
+    <div class="card" id="cardCar" style="flex:1;min-height:0">
       <h2>Car</h2>
       <div class="kv">
         <span class="k">ダメージ 前</span><span class="v" id="dmg0">0</span>
@@ -249,6 +533,20 @@
     </div>
   </div>
 
+  <!-- ============ 映像（OBS → MediaMTX → WebRTC / HLS） ============ -->
+  <div class="colstack" id="colVideo">
+    <div class="card canvasCard" id="cardVideo">
+      <h2>Video</h2>
+      <div class="legend" id="vidStatus">未接続</div>
+      <div id="vidSlot"></div>
+      <div id="vidBar">
+        <button id="vidReconnect">再接続</button>
+        <button id="vidMute">音を出す</button>
+        <span id="vidUrl"></span>
+      </div>
+    </div>
+  </div>
+
   <!-- ============ 下段 ============ -->
   <div id="footer">
     <div class="stat"><div class="k">THROTTLE</div><div class="v ok" id="ftThr">0%</div></div>
@@ -263,6 +561,120 @@
     <div class="stat"><div class="k">WIND</div><div class="v" id="ftWind">—</div></div>
   </div>
 </main>
+
+<!-- 左上の小窓。中身(#vidStage)は映像モードのカードと共有する -->
+<div id="vidMini" class="hide">
+  <div id="vidMiniBar">
+    <span class="ttl">VIDEO</span>
+    <span class="st" id="vidMiniStatus">未接続</span>
+    <div class="sp"></div>
+    <button data-size="s">小</button>
+    <button data-size="m">中</button>
+    <button data-size="l">大</button>
+    <button id="vidMiniHide" title="小窓を閉じる">✕</button>
+  </div>
+  <div id="vidMiniSlot"></div>
+</div>
+
+<!-- 映像そのもの。小窓 ⇔ 映像モードで DOM を付け替えるだけなので再接続が起きない -->
+<div id="vidStage">
+  <video id="camVid" autoplay muted playsinline></video>
+  <div id="vidOverlay">
+    <div class="vo"><b>GEAR</b><span id="voGear">N</span></div>
+    <div class="vo"><b>KM/H</b><span id="voSpeed">0</span></div>
+    <div class="vo"><b>RPM</b><span id="voRpm">0</span></div>
+    <div class="vo"><b>DELTA</b><span id="voDelta">--.---</span></div>
+    <div class="vo"><b>LAP</b><span id="voLap">1</span></div>
+    <div class="vo"><b>CURRENT</b><span id="voTime">--:--.---</span></div>
+  </div>
+  <div id="vidTap" class="hide">
+    <div class="ico">▶</div>
+    <div class="txt">タップして再生</div>
+    <div class="sub">iOS は自動再生を許可しないため、最初の1回だけ操作が必要です</div>
+  </div>
+  <div id="vidHint">
+    <b>映像を受け取る準備</b>
+    ゲームPCで MediaMTX を起動し、OBS の 設定 → 配信 → サービス「WHIP」で<br>
+    <code id="hintWhip">http://（ゲームPCのIP）:8889/ac/whip</code><br>
+    に配信してください（詳しくは README-claude.md）。
+  </div>
+</div>
+
+<div id="vidCfg">
+  <div class="box">
+    <h3>映像の設定</h3>
+    <p class="note">OBS から MediaMTX へ WHIP で配信した映像を、この画面で受け取ります。</p>
+    <label>MediaMTX のアドレス
+      <input id="cfgHost" placeholder="（空欄で自動）">
+      <small>ゲームPCのIPとWebRTCのポート。<b>空欄ならこのページと同じホストの :8889</b>
+      を使うので、通常は空欄のままで構いません</small>
+    </label>
+    <label>ストリーム名（パス）
+      <input id="cfgPath" placeholder="ac">
+      <small>OBS の配信先 URL の末尾。<code>.../ac/whip</code> なら <code>ac</code></small>
+    </label>
+    <label>方式
+      <select id="cfgProto">
+        <option value="auto">自動（WebRTC → 駄目ならHLS）</option>
+        <option value="webrtc">WebRTC のみ（低遅延）</option>
+        <option value="hls">HLS のみ（Safari向け・遅延数秒）</option>
+      </select>
+    </label>
+    <label class="chk"><input type="checkbox" id="cfgOverlay" checked> 映像の上にテレメトリーを重ねる</label>
+    <div class="btns">
+      <button id="cfgClose">閉じる</button>
+      <button id="cfgApply" class="primary">適用して接続</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 走行ログ（記録の開始/停止・ラップの選択） ============ -->
+<div id="logPanel">
+  <div class="box">
+    <h3>走行ログ</h3>
+    <p class="note">
+      走行は 60Hz で全項目そのまま記録されます。ラップごとにファイルが分かれ、
+      ゲームPCの <code>logs-claude</code> フォルダに保存されます。
+      ラップを選ぶとこの画面がそのまま再生モードになり、
+      タイヤ・トレース・G-G・コースマップを当時のまま見返せます。
+    </p>
+    <div class="lgTop">
+      <div class="st" id="lgState">—</div>
+      <button id="lgRec">記録を止める</button>
+      <button id="lgReload">再読み込み</button>
+    </div>
+    <div class="lgCols">
+      <div class="lgList"><h4>セッション</h4><div id="lgSessions"></div></div>
+      <div class="lgList"><h4>ラップ</h4><div id="lgLaps"></div></div>
+    </div>
+    <div class="btns">
+      <button id="lgLive">ライブに戻る</button>
+      <button id="lgClose" class="primary">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 再生バー ============ -->
+<div id="repBar" class="hide">
+  <span class="name" id="repName">REPLAY</span>
+  <button id="repPlay" class="primary">▶</button>
+  <button id="repPrev" title="1フレーム戻る">◀|</button>
+  <button id="repNext" title="1フレーム進む">|▶</button>
+  <input id="repSeek" type="range" min="0" max="1000" value="0" step="1">
+  <span class="tm"><b id="repTime">0:00.000</b> / <span id="repLen">—</span></span>
+  <span class="tm" id="repDelta">—</span>
+  <span class="tm hide" id="repLegend" title="コースマップの色分け">
+    <i class="sw g"></i>短縮<i class="sw r"></i>ロス<i class="sw p"></i>ゴースト</span>
+  <select id="repSpeed">
+    <option value="0.1">0.1×</option>
+    <option value="0.25">0.25×</option>
+    <option value="0.5">0.5×</option>
+    <option value="1" selected>1×</option>
+    <option value="2">2×</option>
+    <option value="4">4×</option>
+  </select>
+  <button id="repExit">ライブ</button>
+</div>
 
 <div id="overlay">
   <div class="badge">ASSETTO CORSA TELEMETRY</div>
@@ -321,9 +733,39 @@
 
   function push(arr, v){ arr.push(v); if (arr.length > HIST) arr.shift(); }
 
+  /* 1フレームぶんの履歴を積む。ライブでも再生でも同じ処理を使う。 */
+  function pushFrame(d, allowWrapReset){
+    push(hist.thr, d.throttle); push(hist.brk, d.brake);
+    push(hist.str, d.steer);    push(hist.spd, d.speed);
+    const T = d.tyre;
+    push(hist.slipF, T ? (T.slip[0]+T.slip[1])/2 : 0);
+    push(hist.slipR, T ? (T.slip[2]+T.slip[3])/2 : 0);
+    if (d.g){
+      ggPts.push([d.g.lat, d.g.lon]);
+      if (ggPts.length > 220) ggPts.shift();
+    }
+    if (d.coords && (d.coords[0] || d.coords[1])){
+      liveXY = d.coords;
+      if (allowWrapReset && d.normPos < lastMapNorm - 0.5) mapPts.length = 0;
+      lastMapNorm = d.normPos;
+      const last = mapPts[mapPts.length-1];
+      if (!last || Math.hypot(d.coords[0]-last[0], d.coords[1]-last[1]) > 2.5){
+        mapPts.push([d.coords[0], d.coords[1]]);
+        if (mapPts.length > 4000) mapPts.shift();
+      }
+    }
+  }
+
+  function clearHistory(){
+    Object.keys(hist).forEach(k => { hist[k].length = 0; });
+    ggPts.length = 0; mapPts.length = 0;
+    liveXY = null; lastMapNorm = -1;
+  }
+
   /* ============ Canvas ============ */
   function fit(cv){
     const r = cv.getBoundingClientRect();
+    if (r.width < 2 || r.height < 2) return null;   // 非表示なら描かない
     const dpr = window.devicePixelRatio || 1;
     const w = Math.max(1, Math.round(r.width * dpr));
     const h = Math.max(1, Math.round(r.height * dpr));
@@ -332,7 +774,9 @@
   }
 
   function drawTrace(){
-    const cv = $('traceCv'), {w,h} = fit(cv), c = cv.getContext('2d');
+    const cv = $('traceCv'), m = fit(cv);
+    if (!m) return;
+    const {w,h} = m, c = cv.getContext('2d');
     c.clearRect(0,0,w,h);
     // グリッド
     c.strokeStyle = '#161b22'; c.lineWidth = 1;
@@ -361,7 +805,9 @@
   }
 
   function drawSlip(){
-    const cv = $('slipCv'), {w,h} = fit(cv), c = cv.getContext('2d');
+    const cv = $('slipCv'), m = fit(cv);
+    if (!m) return;
+    const {w,h} = m, c = cv.getContext('2d');
     c.clearRect(0,0,w,h);
     const dpr = window.devicePixelRatio || 1;
     const SLIP_MAX = 4;                       // グリップ限界の目安 ≒ 1.0
@@ -390,7 +836,9 @@
   }
 
   function drawGG(){
-    const cv = $('ggCv'), {w,h} = fit(cv), c = cv.getContext('2d');
+    const cv = $('ggCv'), m = fit(cv);
+    if (!m) return;
+    const {w,h} = m, c = cv.getContext('2d');
     c.clearRect(0,0,w,h);
     const cx = w/2, cy = h/2, R = Math.min(w,h)/2 - 4*(window.devicePixelRatio||1);
     c.strokeStyle = '#1b2029'; c.lineWidth = 1;
@@ -413,20 +861,28 @@
      無ければ走行座標から自前で描く。 */
   let trackMap = null, trackKey = null, trackLoading = false;
   let liveXY = null;
+  let ghostXY = null, refLine = null, deltaRuns = null;   // 基準ラップ（再生時）
+  let lapShape = null;                     // 再生中のラップ1周ぶんの座標
 
   function loadTrackMap(key, attempt){
     attempt = attempt || 0;
     if (attempt === 0){
-      if (key === trackKey || trackLoading) return;
+      if (key === trackKey) return;
+      /* 前のコースの読み込みが残っていても、キーが変わったら即座に切り替える。
+         （古い形状が再生中の別コースの上に残り続けるのを防ぐ） */
       trackKey = key; trackMap = null;
     } else if (key !== trackKey){
       return;                       // 途中でコースが変わったら打ち切り
     }
     trackLoading = true;
     $('mapSrc').textContent = attempt ? '読み込み中… (' + (attempt+1) + ')' : '読み込み中…';
-    fetch('/track.json?k=' + encodeURIComponent(key), {cache:'no-store'})
+    /* 再生中は過去ログのコースを取りに行けるよう、名前を明示して問い合わせる */
+    const kv = key.split('|');
+    fetch('/track.json?track=' + encodeURIComponent(kv[0] || '') +
+          '&layout=' + encodeURIComponent(kv[1] || ''), {cache:'no-store'})
       .then(r => r.ok ? r.json() : Promise.reject(new Error('none')))
       .then(j => {
+        if (key !== trackKey) return;          // 待っている間にコースが変わった
         if (!j || !Array.isArray(j.line) || j.line.length < 8) throw new Error('empty');
         trackMap = j;
         trackLoading = false;
@@ -435,6 +891,7 @@
       })
       .catch(() => {
         trackLoading = false;
+        if (key !== trackKey) return;
         // ブリッジ側が AC から読み出している最中かもしれないので数回リトライ
         if (attempt < 3){
           $('mapSrc').textContent = '読み込み中…';
@@ -447,10 +904,14 @@
   }
 
   function drawMap(){
-    const cv = $('mapCv'), {w,h,dpr} = fit(cv), c = cv.getContext('2d');
+    const cv = $('mapCv'), m = fit(cv);
+    if (!m) return;
+    const {w,h,dpr} = m, c = cv.getContext('2d');
     c.clearRect(0,0,w,h);
     const outline = trackMap ? trackMap.line : null;
-    const shape = outline || mapPts;
+    /* AC の形状が無い時は、再生中なら1周ぶんの走行座標、
+       ライブなら今まで走った分を輪郭として使う。 */
+    const shape = outline || lapShape || mapPts;
     if (!shape || shape.length < 8) return;
 
     let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
@@ -467,30 +928,54 @@
        AC 内蔵ミニマップ(map.png)と同じ向きになる。 */
     const P = p => [ox + (p[0]-x0)*s, oy + (p[1]-y0)*s];
 
-    /* コース形状 */
+    /* コース形状。全画面表示でも見やすいよう線幅をキャンバスサイズに合わせる */
+    const unit = Math.min(w, h);
+    const lwMain = Math.max(2.6 * dpr, unit / 190);
+    const lwTail = Math.max(2.0 * dpr, unit / 260);
+    const rDot = Math.max(3.5 * dpr, unit / 130);
+
     c.lineJoin = 'round'; c.lineCap = 'round';
     if (outline){
-      c.strokeStyle = '#39414f'; c.lineWidth = 3.2*dpr;
+      c.strokeStyle = '#39414f'; c.lineWidth = lwMain;
       c.beginPath();
       outline.forEach((p,i) => { const q=P(p); i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]); });
       c.stroke();
       /* スタート・フィニッシュ */
       const a = P(outline[0]), b = P(outline[Math.min(3, outline.length-1)]);
       const dx = b[0]-a[0], dy = b[1]-a[1], len = Math.hypot(dx,dy) || 1;
-      const nx = -dy/len*6*dpr, ny = dx/len*6*dpr;
-      c.strokeStyle = '#e8ecf3'; c.lineWidth = 2*dpr;
+      const tick = rDot * 2.2;
+      const nx = -dy/len*tick, ny = dx/len*tick;
+      c.strokeStyle = '#e8ecf3'; c.lineWidth = Math.max(2*dpr, lwMain*0.7);
       c.beginPath(); c.moveTo(a[0]-nx, a[1]-ny); c.lineTo(a[0]+nx, a[1]+ny); c.stroke();
     } else {
-      c.strokeStyle = '#2a323f'; c.lineWidth = 2*dpr;
+      c.strokeStyle = '#2a323f'; c.lineWidth = lwMain;
       c.beginPath();
-      mapPts.forEach((p,i) => { const q=P(p); i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]); });
+      shape.forEach((p,i) => { const q=P(p); i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]); });
+      c.stroke();
+    }
+
+    /* 基準ラップとの比較ライン（再生時のみ）。
+       緑 = そこで基準より詰めている、赤 = 失っている。 */
+    if (deltaRuns && deltaRuns.length){
+      c.lineWidth = lwTail * 1.15;
+      deltaRuns.forEach(run => {
+        if (run.pts.length < 2) return;
+        c.strokeStyle = run.color;
+        c.beginPath();
+        run.pts.forEach((p,i) => { const q=P(p); i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]); });
+        c.stroke();
+      });
+    } else if (refLine && refLine.length > 8){
+      c.strokeStyle = 'rgba(168,85,247,.45)'; c.lineWidth = lwTail * 0.8;
+      c.beginPath();
+      refLine.forEach((p,i) => { const q=P(p); i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]); });
       c.stroke();
     }
 
     /* 直近の走行軌跡 */
     if (mapPts.length > 2){
       const tail = mapPts.slice(-260);
-      c.strokeStyle = 'rgba(6,182,212,.85)'; c.lineWidth = 2*dpr;
+      c.strokeStyle = 'rgba(6,182,212,.85)'; c.lineWidth = lwTail;
       c.beginPath();
       tail.forEach((p,i) => { const q=P(p); i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]); });
       c.stroke();
@@ -500,10 +985,19 @@
     const cur = liveXY || shape[shape.length-1];
     const q = P(cur);
     c.fillStyle = 'rgba(239,68,68,.28)';
-    c.beginPath(); c.arc(q[0], q[1], 8*dpr, 0, Math.PI*2); c.fill();
+    c.beginPath(); c.arc(q[0], q[1], rDot*2, 0, Math.PI*2); c.fill();
     c.fillStyle = '#ef4444';
-    c.beginPath(); c.arc(q[0], q[1], 4*dpr, 0, Math.PI*2); c.fill();
-    c.strokeStyle = '#07090c'; c.lineWidth = 1.2*dpr; c.stroke();
+    c.beginPath(); c.arc(q[0], q[1], rDot, 0, Math.PI*2); c.fill();
+    c.strokeStyle = '#07090c'; c.lineWidth = Math.max(1.2*dpr, rDot*0.3); c.stroke();
+
+    /* 基準ラップのゴースト（同じ地点を通過した時の相手位置）。
+       現在地と重なっても見えるように中抜きのリングで描く。 */
+    if (ghostXY){
+      const g = P(ghostXY);
+      c.strokeStyle = '#a855f7';
+      c.lineWidth = Math.max(1.6*dpr, rDot*0.42);
+      c.beginPath(); c.arc(g[0], g[1], rDot*1.55, 0, Math.PI*2); c.stroke();
+    }
   }
 
   /* ============ 表示更新 ============ */
@@ -669,6 +1163,7 @@
 
   function loop(){
     requestAnimationFrame(loop);
+    if (rep.on) repTick();
     if (!dirty || !latest) return;
     dirty = false;
     const d = latest;
@@ -685,34 +1180,831 @@
     }
     ov.classList.add('hide');
 
-    /* 履歴 */
-    push(hist.thr, d.throttle); push(hist.brk, d.brake);
-    push(hist.str, d.steer);    push(hist.spd, d.speed);
-    const T = d.tyre;
-    push(hist.slipF, T ? (T.slip[0]+T.slip[1])/2 : 0);
-    push(hist.slipR, T ? (T.slip[2]+T.slip[3])/2 : 0);
-    ggPts.push([d.g.lat, d.g.lon]);
-    if (ggPts.length > 220) ggPts.shift();
+    /* 履歴。再生中は repSeek() 側で組み立てるのでここでは積まない */
+    if (!rep.on) pushFrame(d, true);
 
     /* コースが変わったら形状データを取りに行く */
     loadTrackMap((d.track || '') + '|' + (d.trackConfig || ''));
 
-    /* マップ：1周ぶんの座標を貯める */
-    if (d.coords && (d.coords[0] || d.coords[1])){
-      liveXY = d.coords;
-      if (d.normPos < lastMapNorm - 0.5) mapPts.length = 0;   // 周回リセット
-      lastMapNorm = d.normPos;
-      const last = mapPts[mapPts.length-1];
-      if (!last || Math.hypot(d.coords[0]-last[0], d.coords[1]-last[1]) > 2.5){
-        mapPts.push([d.coords[0], d.coords[1]]);
-        if (mapPts.length > 4000) mapPts.shift();
-      }
-    }
-
     apply(d);
+    updateVideoOverlay(d);
     drawTrace(); drawSlip(); drawGG(); drawMap();
   }
   requestAnimationFrame(loop);
+
+  /* ============ 映像（OBS → MediaMTX → WebRTC / HLS） ============ */
+  /* 接続は1本だけ張り、#vidStage を小窓と全画面カードの間で付け替える。
+     DOM を移動しても再生は途切れないので、モード切替で再接続が起きない。 */
+
+  const VID_STORE = 'acengineer-claude-video';
+  const vid = {host:'', path:'ac', proto:'auto', overlay:true, mini:false, size:'m'};
+  try{ Object.assign(vid, JSON.parse(localStorage.getItem(VID_STORE) || '{}')); }catch(e){}
+  function vidSave(){ try{ localStorage.setItem(VID_STORE, JSON.stringify(vid)); }catch(e){} }
+
+  /* ゲームPCの実IP。localhost ではなくこれを画面に出す。
+     ブリッジの /info.json から取得し、取れなければページのホスト名を使う。 */
+  let serverIp = location.hostname;
+  fetch('/info.json', {cache: 'no-store'})
+    .then(r => r.ok ? r.json() : null)
+    .then(j => {
+      if (j && j.ip && !String(j.ip).startsWith('127.')) serverIp = j.ip;
+      updateWhipHint();
+      const u = $('vidUrl'); if (u && u.textContent) u.textContent = whepUrl();
+    })
+    .catch(() => updateWhipHint());
+
+  function updateWhipHint(){
+    const el = $('hintWhip');
+    if (el) el.textContent = 'http://' + serverIp + ':8889/' + vidStreamPath() + '/whip';
+  }
+
+  let curView = 'all';
+  let vidPc = null;          // RTCPeerConnection
+  let vidResource = null;    // WHEP の Location（切断時に DELETE する）
+  let vidBusy = false;
+  let vidRetry = null;
+  let vidActive = false;     // 接続を維持したい状態か
+
+  /* --- URL 組み立て --- */
+  function vidHostPort(){
+    const h = (vid.host || '').trim().replace(/\/+$/, '');
+    if (h) return /^https?:\/\//.test(h) ? h : 'http://' + h;
+    // 自動: ゲームPCの実IP（/info.json 由来）。取れていなければページのホスト名
+    return 'http://' + (serverIp || location.hostname) + ':8889';
+  }
+  function vidStreamPath(){ return (vid.path || 'ac').replace(/^\/+|\/+$/g, '') || 'ac'; }
+  function whepUrl(){ return vidHostPort() + '/' + vidStreamPath() + '/whep'; }
+  function hlsUrl(){
+    let host = location.hostname;
+    try{ host = new URL(vidHostPort()).hostname; }catch(e){ host = location.hostname; }
+    return 'http://' + host + ':8888/' + vidStreamPath() + '/index.m3u8';
+  }
+  function nativeHls(){
+    return !!document.createElement('video')
+      .canPlayType('application/vnd.apple.mpegurl');
+  }
+
+  function setVidStatus(txt, cls){
+    const a = $('vidStatus'), b = $('vidMiniStatus');
+    if (a){ a.textContent = txt; a.className = 'legend ' + (cls || ''); }
+    if (b){ b.textContent = txt; }
+  }
+  function showHint(show){ $('vidHint').classList.toggle('hide', !show); }
+  function showTap(show){ $('vidTap').classList.toggle('hide', !show); }
+
+  /* iOS(Safari) は MediaStream を流した <video> を自動再生しない。
+     autoplay / muted / playsinline を付けても、ページがカメラを使っているか
+     既に音を鳴らしている場合しか許可されない。
+     そのため play() を明示的に呼び、拒否されたらタップを促す。
+     DOM を付け替えた直後も一時停止することがあるので同じ処理を通す。 */
+  function tryPlay(){
+    const v = $('camVid');
+    if (!v.srcObject && !v.getAttribute('src')) return;
+    const pr = v.play();
+    if (pr && typeof pr.catch === 'function'){
+      pr.then(() => showTap(false))
+        .catch(() => {
+          showTap(true);
+          setVidStatus('タップして再生（iOSの自動再生制限）', 'wait');
+        });
+    }
+  }
+
+  /* 実際に再生できているかで状態表示を出す（届いているのに止まっている、を見分ける） */
+  (function(){
+    const v = $('camVid');
+    v.addEventListener('playing', () => {
+      showHint(false); showTap(false);
+      const how = v.srcObject ? 'WebRTC' : 'HLS（遅延数秒）';
+      setVidStatus('再生中 · ' + how, 'ok');
+    });
+    v.addEventListener('pause', () => {
+      if (vidActive){ showTap(true); setVidStatus('停止中 — タップして再生', 'wait'); }
+    });
+    v.addEventListener('stalled', () => {
+      if (vidActive) setVidStatus('映像が届いていません（帯域・UDPを確認）', 'err');
+    });
+    $('vidTap').addEventListener('click', () => { showTap(false); tryPlay(); });
+  })();
+
+  /* --- 接続 --- */
+  function iceDone(pc, ms){
+    return new Promise(resolve => {
+      if (pc.iceGatheringState === 'complete') return resolve();
+      const done = () => { clearTimeout(t); pc.removeEventListener('icegatheringstatechange', h); resolve(); };
+      const h = () => { if (pc.iceGatheringState === 'complete') done(); };
+      const t = setTimeout(done, ms);      // 集め終わらなくても送ってしまう
+      pc.addEventListener('icegatheringstatechange', h);
+    });
+  }
+
+  async function startWhep(){
+    const pc = new RTCPeerConnection({iceServers: []});
+    vidPc = pc;
+    pc.addTransceiver('video', {direction: 'recvonly'});
+    pc.addTransceiver('audio', {direction: 'recvonly'});
+    pc.ontrack = ev => {
+      $('camVid').srcObject = ev.streams[0];
+      showHint(false);
+      setVidStatus('映像を受信しました。再生を開始します…', 'wait');
+      tryPlay();                      // ← iOS ではこれが無いと1コマ目で止まる
+    };
+    pc.onconnectionstatechange = () => {
+      if (!vidPc || pc !== vidPc) return;
+      const st = pc.connectionState;
+      if (st === 'connected' && !$('camVid').srcObject) setVidStatus('接続済み', 'ok');
+      if (st === 'failed' || st === 'disconnected' || st === 'closed'){
+        if (vidActive){ setVidStatus('切断されました。再接続します…', 'wait'); scheduleRetry(2000); }
+      }
+    };
+
+    await pc.setLocalDescription(await pc.createOffer());
+    await iceDone(pc, 1500);
+
+    let res;
+    try{
+      res = await fetch(whepUrl(), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/sdp'},
+        body: pc.localDescription.sdp,
+      });
+    }catch(e){
+      throw new Error('MediaMTX に届きません（アドレス・起動状態・ファイアウォールを確認）');
+    }
+    if (res.status === 404) throw new Error('ストリームがありません（OBSで配信開始を押してください）');
+    if (!res.ok) throw new Error('MediaMTX が HTTP ' + res.status + ' を返しました');
+    vidResource = res.headers.get('Location') || null;
+    if (vidResource && !/^https?:/.test(vidResource)){
+      try{ vidResource = new URL(vidResource, whepUrl()).href; }catch(e){ vidResource = null; }
+    }
+    await pc.setRemoteDescription({type: 'answer', sdp: await res.text()});
+  }
+
+  function startHls(){
+    if (!nativeHls()) throw new Error('このブラウザは HLS を直接再生できません');
+    const v = $('camVid');
+    v.srcObject = null;
+    v.src = hlsUrl();
+    v.onloadeddata = () => { showHint(false); tryPlay(); };
+    setVidStatus('HLS で接続中…', 'wait');
+    tryPlay();
+  }
+
+  function scheduleRetry(ms){
+    clearTimeout(vidRetry);
+    vidRetry = setTimeout(() => { if (vidActive){ vidTeardown(); vidConnect(); } }, ms);
+  }
+
+  async function vidConnect(){
+    if (vidBusy || !vidActive) return;
+    vidBusy = true;
+    $('vidUrl').textContent = whepUrl();
+    updateWhipHint();
+    setVidStatus('接続中…', 'wait');
+    showHint(true);
+    try{
+      if (vid.proto === 'hls'){ startHls(); }
+      else { await startWhep(); }
+    }catch(e){
+      if (vid.proto === 'auto' && nativeHls()){
+        try{ startHls(); }
+        catch(e2){ setVidStatus(e.message, 'err'); scheduleRetry(5000); }
+      } else {
+        setVidStatus(e.message, 'err');
+        scheduleRetry(5000);
+      }
+    }finally{
+      vidBusy = false;
+    }
+  }
+
+  function vidTeardown(){
+    if (vidResource){ fetch(vidResource, {method: 'DELETE'}).catch(() => {}); vidResource = null; }
+    if (vidPc){ try{ vidPc.close(); }catch(e){} vidPc = null; }
+    const v = $('camVid');
+    v.srcObject = null;
+    v.removeAttribute('src');
+    try{ v.load(); }catch(e){}
+  }
+
+  function vidStop(){
+    vidActive = false;
+    clearTimeout(vidRetry); vidRetry = null;
+    vidTeardown();
+    showHint(true);
+    showTap(false);
+    setVidStatus('未接続', '');
+  }
+
+  /* --- 配置（小窓 / 全画面 / どちらでもない） --- */
+  function vidPlace(){
+    const full = (curView === 'video');
+    const mini = vid.mini && !full;
+    const slot = full ? $('vidSlot') : (mini ? $('vidMiniSlot') : null);
+
+    $('vidMini').classList.toggle('hide', !mini);
+    $('vidMini').className = ($('vidMini').className.replace(/\b[sml]\b/g, '').trim()) +
+                             (mini ? ' ' + vid.size : '');
+    if (!mini) $('vidMini').classList.add('hide');
+    $('vidMiniBtn').classList.toggle('act', !!vid.mini);
+    document.body.classList.toggle('novo', !vid.overlay);
+    document.querySelectorAll('#vidMiniBar button[data-size]')
+      .forEach(b => b.classList.toggle('act', b.dataset.size === vid.size));
+    if (mini) applyMiniPos();
+
+    const stage = $('vidStage');
+    if (slot){
+      if (stage.parentElement !== slot){
+        slot.appendChild(stage);
+        // <video> を DOM 上で移動すると一時停止する環境があるので再生し直す
+        setTimeout(tryPlay, 0);
+      }
+      stage.style.display = '';
+      if (!vidActive){ vidActive = true; vidConnect(); }
+    } else {
+      stage.style.display = 'none';
+      if (vidActive) vidStop();
+    }
+  }
+
+  /* --- 小窓のドラッグ移動 --- */
+  function miniClamp(x, y){
+    const mini = $('vidMini'), r = mini.getBoundingClientRect();
+    const w = r.width || 360, h = r.height || 220;
+    return [Math.max(4, Math.min(window.innerWidth - w - 4, x)),
+            Math.max(4, Math.min(window.innerHeight - h - 4, y))];
+  }
+  function applyMiniPos(){
+    const mini = $('vidMini');
+    if (typeof vid.x === 'number' && typeof vid.y === 'number'){
+      const [x, y] = miniClamp(vid.x, vid.y);
+      mini.style.left = x + 'px'; mini.style.top = y + 'px';
+    }
+  }
+  (function(){
+    const mini = $('vidMini'), bar = $('vidMiniBar');
+    let grab = null;
+    bar.addEventListener('pointerdown', ev => {
+      if (ev.target.closest('button')) return;
+      const r = mini.getBoundingClientRect();
+      grab = {dx: ev.clientX - r.left, dy: ev.clientY - r.top};
+      try{ bar.setPointerCapture(ev.pointerId); }catch(e){}
+      ev.preventDefault();
+    });
+    bar.addEventListener('pointermove', ev => {
+      if (!grab) return;
+      const [x, y] = miniClamp(ev.clientX - grab.dx, ev.clientY - grab.dy);
+      vid.x = Math.round(x); vid.y = Math.round(y);
+      mini.style.left = vid.x + 'px'; mini.style.top = vid.y + 'px';
+    });
+    const end = () => { if (grab){ grab = null; vidSave(); } };
+    bar.addEventListener('pointerup', end);
+    bar.addEventListener('pointercancel', end);
+    window.addEventListener('resize', applyMiniPos);
+  })();
+
+  /* --- 操作 --- */
+  $('vidMiniBtn').onclick = () => { vid.mini = !vid.mini; vidSave(); vidPlace(); };
+  $('vidMiniHide').onclick = () => { vid.mini = false; vidSave(); vidPlace(); };
+  document.querySelectorAll('#vidMiniBar button[data-size]').forEach(b => {
+    b.onclick = () => { vid.size = b.dataset.size; vidSave(); vidPlace(); };
+  });
+  $('vidReconnect').onclick = () => {
+    vidTeardown(); showTap(false); vidActive = true; vidConnect(); tryPlay();
+  };
+  $('vidMute').onclick = () => {
+    const v = $('camVid');
+    v.muted = !v.muted;
+    $('vidMute').textContent = v.muted ? '音を出す' : '音を消す';
+    tryPlay();
+  };
+
+  $('vidCfgBtn').onclick = () => {
+    $('cfgHost').value = vid.host;
+    $('cfgHost').placeholder = serverIp + ':8889（空欄で自動）';
+    $('cfgPath').value = vid.path;
+    $('cfgProto').value = vid.proto;
+    $('cfgOverlay').checked = !!vid.overlay;
+    $('vidCfg').classList.add('show');
+  };
+  $('cfgClose').onclick = () => $('vidCfg').classList.remove('show');
+  $('cfgApply').onclick = () => {
+    vid.host = $('cfgHost').value.trim();
+    vid.path = $('cfgPath').value.trim() || 'ac';
+    vid.proto = $('cfgProto').value;
+    vid.overlay = $('cfgOverlay').checked;
+    vidSave();
+    $('vidCfg').classList.remove('show');
+    vidTeardown();
+    vidPlace();
+    if (vidActive) vidConnect();
+  };
+
+  /* --- 映像に重ねるテレメトリー --- */
+  function updateVideoOverlay(d){
+    if (!vidActive || !vid.overlay) return;
+    $('voGear').textContent = d.gear;
+    $('voSpeed').textContent = Math.round(d.speed);
+    $('voRpm').textContent = Math.round(d.rpm).toLocaleString();
+    $('voLap').textContent = d.totalLaps > 0 ? d.lap + '/' + d.totalLaps : d.lap;
+    $('voTime').textContent = d.curTimeStr;
+    const dv = $('voDelta');
+    if (d.delta == null){ dv.textContent = '--.---'; dv.style.color = '#9aa6bb'; }
+    else {
+      dv.textContent = (d.delta >= 0 ? '+' : '') + d.delta.toFixed(3);
+      dv.style.color = d.delta < 0 ? '#22c55e' : '#ef4444';
+    }
+  }
+
+  /* ============ 表示モードの切替 ============ */
+  const VIEWS = {
+    all:  null,                                             // 全体表示
+    map:  {col:'colLeft',  cards:['cardMap']},
+    race: {col:'colLeft',  cards:['cardTiming','cardSession']},
+    car:  {col:'colRight', cards:['cardTyres','cardFuel','cardCar']},
+    video:{col:'colVideo',  cards:['cardVideo']},
+  };
+  const VIEW_KEYS = ['all','map','race','car','video'];
+  const VIEW_STORE = 'acengineer-claude-view';
+
+  function setView(v){
+    if (!VIEW_KEYS.includes(v)) v = 'all';
+    curView = v;
+    document.body.classList.toggle('focus', v !== 'all');
+    VIEW_KEYS.forEach(k => document.body.classList.toggle('view-' + k, k === v));
+    document.querySelectorAll('.colstack').forEach(e => e.classList.remove('active'));
+    document.querySelectorAll('.card').forEach(e => e.classList.remove('show'));
+    const conf = VIEWS[v];
+    if (conf){
+      $(conf.col).classList.add('active');
+      conf.cards.forEach(id => $(id).classList.add('show'));
+    }
+    document.querySelectorAll('#views button')
+      .forEach(b => b.classList.toggle('act', b.dataset.v === v));
+    try{ localStorage.setItem(VIEW_STORE, v); }catch(e){}
+    vidPlace();                         // 小窓 ⇔ 全画面の付け替え
+    dirty = true;                       // 次のフレームで再描画・再フィット
+  }
+
+  document.querySelectorAll('#views button').forEach(b => {
+    b.onclick = () => setView(b.dataset.v);
+  });
+  /* 1〜4 キーでも切り替えられる */
+  window.addEventListener('keydown', ev => {
+    if (ev.target && /^(INPUT|TEXTAREA)$/.test(ev.target.tagName)) return;
+    const i = '12345'.indexOf(ev.key);
+    if (i >= 0) setView(VIEW_KEYS[i]);
+  });
+  let saved = 'all';
+  try{ saved = localStorage.getItem(VIEW_STORE) || 'all'; }catch(e){}
+  setView(saved);
+
+  /* ============ 走行ログ / 再生 ============ */
+  /* 記録はブリッジ側が 60Hz で全項目を残している。ここではその
+     .jsonl.gz を取ってきて latest に流し込むだけなので、
+     タイヤ・トレース・G-G・マップの描画はライブと完全に同じものが使える。 */
+
+  const rep = {on:false, frames:[], idx:0, built:-1, playing:false, speed:1,
+               wall:0, tms:0, sess:null, lapFile:null, ref:null, refKey:null};
+  let logSessions = [], lgSelSess = null, recState = null;
+
+  function fmtMs(ms){
+    if (ms == null || ms <= 0 || ms > 3600000) return '—';
+    const m = Math.floor(ms/60000), s = (ms%60000)/1000;
+    return m + ':' + (s < 10 ? '0' : '') + s.toFixed(3);
+  }
+  function fmtSize(b){
+    b = b || 0;
+    return b >= 1048576 ? (b/1048576).toFixed(1)+' MB' : Math.round(b/1024)+' KB';
+  }
+
+  /* ---- 記録状態 ---- */
+  function recSync(rec){
+    if (!rec) return;
+    recState = rec;
+    const b = $('recBtn');
+    b.classList.toggle('on', !!rec.on);
+    b.textContent = rec.on
+      ? (rec.session ? 'REC L' + (rec.lap || 0) : 'REC 待機')
+      : 'REC OFF';
+    b.title = rec.on
+      ? (rec.session ? '記録中 · ' + fmtSize(rec.bytes) + ' · 押すと停止'
+                     : 'AC のセッション開始を待っています · 押すと停止')
+      : '記録は停止中 · 押すと開始';
+    if ($('logPanel').classList.contains('show')) lgStateSync();
+  }
+  function recPost(path){
+    fetch(path, {method:'POST'}).then(r => r.json()).then(recSync).catch(() => {});
+  }
+  $('recBtn').onclick = () => recPost('/log/toggle');
+
+  function lgStateSync(){
+    const r = recState || {};
+    const st = $('lgState');
+    st.textContent = '';
+    if (r.on){
+      st.appendChild(document.createTextNode('記録中: '));
+      const b = document.createElement('b');
+      b.textContent = r.session || 'AC のセッション開始を待っています';
+      st.appendChild(b);
+      if (r.session)
+        st.appendChild(document.createTextNode(
+          ' · LAP ' + (r.lap || 0) + ' · ' + fmtSize(r.bytes) +
+          (r.dropped ? ' · 取りこぼし ' + r.dropped : '')));
+    } else {
+      st.textContent = r.note || '記録は停止しています';
+    }
+    $('lgRec').textContent = r.on ? '記録を止める' : '記録を始める';
+    $('lgRec').classList.toggle('rec', !r.on);
+  }
+
+  /* ---- 一覧 ---- */
+  function lgLoad(){
+    fetch('/logs.json', {cache:'no-store'})
+      .then(r => r.json())
+      .then(j => {
+        recSync(j.rec);
+        logSessions = j.sessions || [];
+        lgRenderSessions();
+      })
+      .catch(() => {
+        $('lgSessions').textContent = '';
+        const d = document.createElement('div');
+        d.className = 'lgRow';
+        d.textContent = 'ログ一覧を読み込めませんでした';
+        $('lgSessions').appendChild(d);
+      });
+  }
+
+  function lgRenderSessions(){
+    const box = $('lgSessions');
+    box.textContent = '';
+    if (!logSessions.length){
+      const d = document.createElement('div');
+      d.className = 'lgRow';
+      d.textContent = '記録されたラップはまだありません';
+      box.appendChild(d);
+      $('lgLaps').textContent = '';
+      return;
+    }
+    if (!logSessions.some(s => s.id === lgSelSess)) lgSelSess = logSessions[0].id;
+    logSessions.forEach(s => {
+      const row = document.createElement('div');
+      row.className = 'lgRow' + (s.id === lgSelSess ? ' sel' : '');
+      const t1 = document.createElement('div');
+      t1.className = 't1';
+      t1.textContent = (s.track || '?') + (s.layout ? ' / ' + s.layout : '');
+      const t2 = document.createElement('div');
+      t2.className = 't2';
+      t2.textContent = (s.car || '?') + ' · ' + (s.started || s.id) +
+                       ' · ' + s.laps.length + ' laps · ' + fmtSize(s.bytes);
+      row.appendChild(t1); row.appendChild(t2);
+
+      const acts = document.createElement('div');
+      acts.className = 'acts';
+      const del = document.createElement('button');
+      del.className = 'del';
+      del.textContent = '削除';
+      del.onclick = ev => {
+        ev.stopPropagation();
+        if (!del.classList.contains('arm')){
+          del.classList.add('arm');
+          del.textContent = '本当に削除?';
+          setTimeout(() => { del.classList.remove('arm'); del.textContent = '削除'; }, 4000);
+          return;
+        }
+        fetch('/log/delete?s=' + encodeURIComponent(s.id), {method:'POST'})
+          .then(() => lgLoad()).catch(() => {});
+      };
+      acts.appendChild(del);
+      row.appendChild(acts);
+
+      row.onclick = () => { lgSelSess = s.id; lgRenderSessions(); };
+      box.appendChild(row);
+    });
+    lgRenderLaps();
+  }
+
+  function lgRenderLaps(){
+    const box = $('lgLaps');
+    box.textContent = '';
+    const s = logSessions.find(x => x.id === lgSelSess);
+    if (!s) return;
+    s.laps.slice().reverse().forEach(lap => {
+      const row = document.createElement('div');
+      row.className = 'lgRow' +
+        (rep.on && rep.sess === s.id && rep.lapFile === lap.file ? ' sel' : '');
+      const t1 = document.createElement('div');
+      t1.className = 't1';
+      t1.textContent = 'LAP ' + lap.n + '　' + (lap.time || '—');
+      const tag = document.createElement('span');
+      tag.className = 'tag' + (lap.valid ? ' ok' : (lap.partial ? '' : ' ng'));
+      tag.textContent = lap.valid ? 'VALID' : (lap.partial ? '部分' : (lap.pit ? 'PIT' : '無効'));
+      t1.appendChild(tag);
+      const t2 = document.createElement('div');
+      t2.className = 't2';
+      t2.textContent = lap.frames + ' frames · ' + fmtSize(lap.bytes);
+      row.appendChild(t1); row.appendChild(t2);
+
+      const acts = document.createElement('div');
+      acts.className = 'acts';
+
+      const go = document.createElement('button');
+      go.className = 'go';
+      go.textContent = '再生';
+      go.onclick = ev => { ev.stopPropagation(); repOpen(s, lap); };
+      acts.appendChild(go);
+
+      const ref = document.createElement('button');
+      const isRef = rep.refKey === s.id + '/' + lap.file;
+      ref.className = 'ref' + (isRef ? ' on' : '');
+      ref.textContent = isRef ? '基準を解除' : '基準にする';
+      ref.onclick = ev => {
+        ev.stopPropagation();
+        if (isRef) repClearRef(); else repSetRef(s, lap);
+      };
+      acts.appendChild(ref);
+
+      const csv = document.createElement('a');
+      csv.textContent = 'CSV';
+      csv.href = '/logs-csv/' + encodeURIComponent(s.id) + '/' + encodeURIComponent(lap.file);
+      csv.setAttribute('download', '');
+      csv.onclick = ev => ev.stopPropagation();
+      acts.appendChild(csv);
+
+      row.appendChild(acts);
+      row.onclick = () => repOpen(s, lap);
+      box.appendChild(row);
+    });
+  }
+
+  /* ---- ラップの読み込み ---- */
+  function lgFetchLap(sessId, file){
+    /* サーバーは gzip のまま返し、ブラウザが展開する（Content-Encoding: gzip） */
+    return fetch('/logs-data/' + encodeURIComponent(sessId) + '/' + encodeURIComponent(file),
+                 {cache:'no-store'})
+      .then(r => r.ok ? r.text() : Promise.reject(new Error('not found')))
+      .then(txt => {
+        const out = [];
+        txt.split('\n').forEach(line => {
+          line = line.trim();
+          if (!line) return;
+          try{ out.push(JSON.parse(line)); }catch(e){}
+        });
+        return out;
+      });
+  }
+
+  /* ---- 基準ラップ（ゴースト） ---- */
+  const REF_N = 2000;                       // 基準ラップを何分割で持つか
+
+  function buildRef(frames){
+    const N = REF_N, t = new Array(N).fill(null), pos = new Array(N).fill(null);
+    frames.forEach(f => {
+      const i = Math.max(0, Math.min(N-1, Math.floor((f.normPos || 0) * N)));
+      if (t[i] == null && f.curTime > 0){ t[i] = f.curTime; pos[i] = f.coords || null; }
+    });
+    let last = -1;
+    for (let i = 0; i < N; i++){
+      if (t[i] == null) continue;
+      if (last >= 0 && i - last > 1){
+        for (let k = last + 1; k < i; k++){
+          const a = (k - last) / (i - last);
+          t[k] = t[last] + (t[i] - t[last]) * a;
+          pos[k] = (pos[last] && pos[i])
+            ? [pos[last][0] + (pos[i][0] - pos[last][0]) * a,
+               pos[last][1] + (pos[i][1] - pos[last][1]) * a]
+            : (pos[i] || pos[last]);
+        }
+      }
+      last = i;
+    }
+    const line = [];
+    frames.forEach((f, i) => { if (i % 4 === 0 && f.coords) line.push(f.coords); });
+    return {t: t, pos: pos, line: line};
+  }
+
+  /* 基準ラップの「その地点での経過時間」。区切りの刻みで段々に
+     跳ねないよう前後を線形補間して返す。 */
+  function refTimeAt(norm){
+    const r = rep.ref;
+    if (!r) return null;
+    const x = Math.max(0, Math.min(0.999999, norm || 0)) * REF_N;
+    const i = Math.min(REF_N - 1, Math.floor(x));
+    const a = r.t[i], b = r.t[Math.min(REF_N - 1, i + 1)];
+    if (a == null) return b;
+    if (b == null) return a;
+    return a + (b - a) * (x - i);
+  }
+  function refPosAt(norm){
+    const r = rep.ref;
+    if (!r) return null;
+    const i = Math.min(REF_N - 1, Math.max(0, Math.floor((norm || 0) * REF_N)));
+    return r.pos[i] || null;
+  }
+
+  /* 再生中のラップを、基準ラップとの「どこで得してどこで損したか」で塗り分ける。
+     0.5秒ぶんの窓でデルタの傾きを見て、詰めている区間を緑、失う区間を赤にする。 */
+  function buildDeltaRuns(){
+    deltaRuns = null;
+    if (!rep.ref || rep.frames.length < 60) return;
+    const F = rep.frames, K = 45, STEP = 4, TH = 15;  // 0.75秒の窓 / ±15ms は中立
+    const COLORS = {'-1':'rgba(34,197,94,.95)', '0':'rgba(120,132,152,.7)',
+                    '1':'rgba(239,68,68,.95)'};
+    const dl = F.map(f => {
+      const rt = refTimeAt(f.normPos);
+      return (rt != null && f.curTime > 0) ? (f.curTime - rt) : null;
+    });
+
+    /* 間引きしつつ、区間ごとの得失を -1 / 0 / +1 に分類 */
+    const pts = [], code = [];
+    for (let i = 0; i < F.length; i += STEP){
+      const f = F[i];
+      if (!f.coords || (!f.coords[0] && !f.coords[1])) continue;
+      const j = Math.max(0, i - K);
+      let v = 0;
+      if (dl[i] != null && dl[j] != null){
+        const gain = dl[i] - dl[j];
+        v = gain < -TH ? -1 : (gain > TH ? 1 : 0);
+      }
+      pts.push(f.coords); code.push(v);
+    }
+    /* 中央値フィルタでちらつきを抑える（短いブレを潰す） */
+    const W = 3, sm = code.slice();
+    for (let i = 0; i < code.length; i++){
+      const win = code.slice(Math.max(0, i-W), i+W+1).slice().sort((a,b)=>a-b);
+      sm[i] = win[Math.floor(win.length/2)];
+    }
+
+    const runs = [];
+    let cur = null;
+    for (let i = 0; i < pts.length; i++){
+      const color = COLORS[String(sm[i])];
+      if (!cur || cur.color !== color){
+        if (cur) cur.pts.push(pts[i]);        // 色の切れ目をつなぐ
+        cur = {color: color, pts: []};
+        runs.push(cur);
+      }
+      cur.pts.push(pts[i]);
+    }
+    deltaRuns = runs.filter(r => r.pts.length > 1);
+    $('repLegend').classList.remove('hide');
+  }
+
+  function repSetRef(s, lap){
+    lgFetchLap(s.id, lap.file).then(frames => {
+      if (frames.length < 10) return;
+      rep.ref = buildRef(frames);
+      rep.refKey = s.id + '/' + lap.file;
+      refLine = rep.ref.line;
+      buildDeltaRuns();
+      lgRenderLaps();
+      if (rep.on) repSeek(rep.idx, false);
+      dirty = true;
+    }).catch(() => {});
+  }
+  function repClearRef(){
+    rep.ref = null; rep.refKey = null;
+    refLine = null; ghostXY = null; deltaRuns = null;
+    $('repLegend').classList.add('hide');
+    lgRenderLaps();
+    if (rep.on) repSeek(rep.idx, false);
+    dirty = true;
+  }
+
+  /* ---- 再生 ---- */
+  function repOpen(s, lap){
+    lgFetchLap(s.id, lap.file).then(frames => {
+      if (frames.length < 2) return;
+      rep.frames = frames;
+      rep.sess = s.id; rep.lapFile = lap.file;
+      rep.idx = 0; rep.built = -1; rep.tms = 0; rep.wall = 0;
+      rep.on = true;
+      document.body.classList.add('replaying');
+      $('repBar').classList.remove('hide');
+      $('logBtn').classList.add('act');
+      $('repName').textContent = 'LAP ' + lap.n +
+        (lap.time && lap.time !== '—' ? ' · ' + lap.time : '');
+      $('repSeek').max = String(frames.length - 1);
+      $('repLen').textContent = fmtMs(frames[frames.length - 1].curTime);
+      clearHistory();
+      lapShape = [];
+      frames.forEach((f, i) => {
+        if (i % 6 === 0 && f.coords && (f.coords[0] || f.coords[1]))
+          lapShape.push(f.coords);
+      });
+      if (lapShape.length < 8) lapShape = null;
+      buildDeltaRuns();
+      repSeek(0, false);
+      repSetPlaying(true);
+      lgRenderLaps();
+      $('logPanel').classList.remove('show');
+    }).catch(() => {});
+  }
+
+  function repExit(){
+    rep.on = false; rep.playing = false; rep.frames = [];
+    rep.sess = null; rep.lapFile = null;
+    ghostXY = null; deltaRuns = null; lapShape = null;
+    $('repLegend').classList.add('hide');
+    document.body.classList.remove('replaying');
+    $('repBar').classList.add('hide');
+    $('logBtn').classList.remove('act');
+    clearHistory();
+    lgRenderLaps();
+    dirty = true;
+  }
+
+  function repSetPlaying(on){
+    rep.playing = !!on && rep.frames.length > 1;
+    if (rep.playing && rep.idx >= rep.frames.length - 1){ rep.idx = 0; rep.built = -1; rep.tms = 0; }
+    rep.wall = 0;
+    $('repPlay').textContent = rep.playing ? '❚❚' : '▶';
+  }
+
+  function repSeek(i, incremental){
+    const F = rep.frames;
+    if (!F.length) return;
+    i = Math.max(0, Math.min(F.length - 1, i));
+    if (!incremental || i < rep.built || i - rep.built > 8){
+      clearHistory();
+      for (let k = 0; k <= i; k++) pushFrame(F[k], false);   // マップは周回ぶん全部
+    } else {
+      for (let k = rep.built + 1; k <= i; k++) pushFrame(F[k], false);
+    }
+    rep.built = i;
+    rep.idx = i;
+
+    let d = F[i];
+    if (rep.ref){
+      const rt = refTimeAt(d.normPos);
+      ghostXY = refPosAt(d.normPos);
+      d = Object.assign({}, d);
+      d.delta = (rt != null && d.curTime > 0) ? (d.curTime - rt) / 1000 : null;
+    } else {
+      ghostXY = null;
+    }
+    latest = d; dirty = true;
+    repUi(d);
+  }
+
+  function repUi(d){
+    $('repSeek').value = String(rep.idx);
+    $('repTime').textContent = fmtMs(d.curTime);
+    const dd = d.delta;
+    const el = $('repDelta');
+    if (rep.ref && dd != null){
+      el.textContent = (dd >= 0 ? '+' : '') + dd.toFixed(3);
+      el.style.color = dd <= 0 ? 'var(--green)' : 'var(--red)';
+    } else {
+      el.textContent = rep.ref ? '—' : '基準なし';
+      el.style.color = '';
+    }
+  }
+
+  function repTick(){
+    if (!rep.on || !rep.playing || rep.frames.length < 2) return;
+    const now = performance.now();
+    if (!rep.wall){ rep.wall = now; return; }
+    rep.tms += (now - rep.wall) * rep.speed;
+    rep.wall = now;
+    const base = rep.frames[0].t || 0;
+    let i = rep.idx;
+    while (i + 1 < rep.frames.length && ((rep.frames[i+1].t || 0) - base) <= rep.tms) i++;
+    if (i !== rep.idx) repSeek(i, true);
+    if (rep.idx >= rep.frames.length - 1) repSetPlaying(false);
+  }
+
+  function repJump(i){
+    repSeek(i, false);
+    rep.tms = (rep.frames[rep.idx].t || 0) - (rep.frames[0].t || 0);
+    rep.wall = 0;
+  }
+
+  $('repPlay').onclick = () => repSetPlaying(!rep.playing);
+  $('repPrev').onclick = () => { repSetPlaying(false); repJump(rep.idx - 1); };
+  $('repNext').onclick = () => { repSetPlaying(false); repJump(rep.idx + 1); };
+  $('repExit').onclick = repExit;
+  $('repSeek').oninput = ev => { repSetPlaying(false); repJump(parseInt(ev.target.value, 10) || 0); };
+  $('repSpeed').onchange = ev => { rep.speed = parseFloat(ev.target.value) || 1; rep.wall = 0; };
+
+  /* ---- パネル ---- */
+  $('logBtn').onclick = () => { $('logPanel').classList.add('show'); lgStateSync(); lgLoad(); };
+  $('lgClose').onclick = () => $('logPanel').classList.remove('show');
+  $('lgLive').onclick = () => { repExit(); $('logPanel').classList.remove('show'); };
+  $('lgReload').onclick = lgLoad;
+  $('lgRec').onclick = () => recPost(recState && recState.on ? '/log/stop' : '/log/start');
+  $('logPanel').onclick = ev => { if (ev.target === $('logPanel')) $('logPanel').classList.remove('show'); };
+
+  window.addEventListener('keydown', ev => {
+    if (ev.target && /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) return;
+    if (ev.key === 'l' || ev.key === 'L'){ $('logBtn').onclick(); return; }
+    if (!rep.on) return;
+    if (ev.key === ' '){ ev.preventDefault(); repSetPlaying(!rep.playing); }
+    else if (ev.key === 'ArrowLeft'){ repSetPlaying(false); repJump(rep.idx - (ev.shiftKey ? 30 : 1)); }
+    else if (ev.key === 'ArrowRight'){ repSetPlaying(false); repJump(rep.idx + (ev.shiftKey ? 30 : 1)); }
+    else if (ev.key === 'Escape'){ repExit(); }
+  });
 
   /* ============ WebSocket ============ */
   let retry = 0;
@@ -720,11 +2012,20 @@
     const url = (location.protocol==='https:'?'wss://':'ws://') + location.host + '/ws';
     const ws = new WebSocket(url);
     ws.onopen = () => { retry = 0; };
-    ws.onmessage = ev => { try{ latest = JSON.parse(ev.data); dirty = true; }catch(e){} };
+    ws.onmessage = ev => {
+      try{
+        const j = JSON.parse(ev.data);
+        recSync(j.rec);
+        if (rep.on) return;          // 再生中はライブで上書きしない
+        latest = j; dirty = true;
+      }catch(e){}
+    };
     ws.onclose = () => {
-      latest = {connected:false, statusText:'切断',
-        note:'ブリッジとの接続が切れました。自動的に再接続します。'};
-      dirty = true;
+      if (!rep.on){
+        latest = {connected:false, statusText:'切断',
+          note:'ブリッジとの接続が切れました。自動的に再接続します。'};
+        dirty = true;
+      }
       retry = Math.min(retry+1, 10);
       setTimeout(connect, 400 + retry*300);
     };

@@ -150,6 +150,7 @@
   #tools button{background:#141821;color:var(--dim);border:1px solid var(--line);
     border-radius:.8vh;padding:.6vh 1.2vh;font-size:1.6vh;font-weight:700;opacity:.35}
   #tools button:active{opacity:1}
+  #tools button#recBtn.on{background:var(--red);border-color:var(--red);color:#fff;opacity:.9}
 
   /* ================= 設定パネル ================= */
   #setup{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.985);
@@ -191,6 +192,7 @@
 <div id="rotate">📱↻<br>横向きにしてください</div>
 
 <div id="tools">
+  <button id="recBtn" title="テレメトリーの記録">REC</button>
   <button id="setBtn">設定</button>
   <button id="fsBtn">全画面</button>
 </div>
@@ -808,13 +810,32 @@
   });
   window.addEventListener('resize', () => { tickSig = ''; dirty = true; });
 
+  /* ===================== 記録（REC） ===================== */
+  /* 記録そのものはゲームPCのブリッジが行う。ここは表示と開始/停止だけ。 */
+  function recSync(rec){
+    const b = document.getElementById('recBtn');
+    if (!b || !rec) return;
+    b.classList.toggle('on', !!rec.on);
+    b.textContent = rec.on ? (rec.session ? 'REC ' + (rec.lap || 0) : 'REC') : 'REC OFF';
+  }
+  document.getElementById('recBtn').onclick = () => {
+    fetch('/log/toggle', {method: 'POST'})
+      .then(r => r.json()).then(recSync).catch(() => {});
+  };
+
   /* ===================== WebSocket ===================== */
   let ws = null, retry = 0;
   function connect(){
     const url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
     ws = new WebSocket(url);
     ws.onopen = () => { retry = 0; };
-    ws.onmessage = ev => { try{ latest = JSON.parse(ev.data); dirty = true; }catch(e){} };
+    ws.onmessage = ev => {
+      try{
+        latest = JSON.parse(ev.data);
+        recSync(latest.rec);
+        dirty = true;
+      }catch(e){}
+    };
     ws.onclose = () => {
       latest = {connected:false, statusText:'切断', note:'ブリッジとの接続が切れました。再接続しています…'};
       dirty = true;

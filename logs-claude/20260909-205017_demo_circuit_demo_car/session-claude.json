@@ -1,0 +1,23 @@
+{
+ "id": "20260909-205017_demo_circuit_demo_car",
+ "started": "2026-09-09 20:50:17",
+ "track": "demo_circuit",
+ "layout": "",
+ "car": "DEMO_CAR",
+ "driver": "Demo Driver",
+ "session": "PRACTICE",
+ "rate": 60,
+ "laps": [
+  {
+   "n": 1,
+   "file": "lap001.jsonl.gz",
+   "ms": 92757,
+   "time": "—",
+   "valid": false,
+   "partial": true,
+   "pit": false,
+   "frames": 4082,
+   "bytes": 1421343
+  }
+ ]
+}

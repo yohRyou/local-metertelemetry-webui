@@ -475,13 +475,15 @@ ACSharedMemoryClaude = ACSharedMemory
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    print("構造体サイズ（Windows 上での値が正）")
+    wchar = ctypes.sizeof(ctypes.c_wchar)
+    print(f"構造体サイズ（この環境: wchar_t = {wchar} バイト）")
     print("  SPageFilePhysics :", ctypes.sizeof(SPageFilePhysics), "bytes")
     print("  SPageFileGraphic :", ctypes.sizeof(SPageFileGraphic), "bytes")
     print("  SPageFileStatic  :", ctypes.sizeof(SPageFileStatic), "bytes")
-    if not sys.platform.startswith("win"):
-        print("  ※ wchar_t が Windows では 2 バイト、ここでは 4 バイトのため"
-              "文字列を含む構造体のサイズは一致しません")
+    print("Windows での想定値 : 580 / 296 / 684 bytes")
+    if wchar != 2:
+        print("  ※ Windows の wchar_t は 2 バイトなので、文字列を含む "
+              "graphics / static のサイズはこの環境とは一致しません")
 
     ac = ACSharedMemory()
     if ac.ensure_open():
