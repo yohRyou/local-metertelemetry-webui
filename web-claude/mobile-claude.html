@@ -25,7 +25,8 @@
     padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
 
   /* ================= タイミングランプ ================= */
-  #lights{display:flex;gap:.4vw;height:9vh;min-height:34px;padding:.6vh .8vw;flex:0 0 auto}
+  #lights{display:flex;gap:.4vw;height:9vh;min-height:34px;flex:0 0 auto;
+    padding:.6vh 24vh .6vh .8vw}   /* 右は設定ボタンぶん空ける */
   .lamp{flex:1;border-radius:.6vh;background:#14171c;border:1px solid #23272e;
     transition:background .04s linear, box-shadow .04s linear}
   .lamp.on{box-shadow:0 0 2.2vh currentColor}
@@ -47,82 +48,101 @@
     font-size:1.4vh;color:rgba(255,255,255,.3);font-weight:700}
 
   /* ================= メイン ================= */
-  #main{flex:1;display:grid;grid-template-columns:1fr 1.15fr 1fr;align-items:center;
-    gap:1vw;padding:0 1.4vw;min-height:0}
-  .col{display:flex;flex-direction:column;justify-content:center;height:100%;min-width:0}
+  /* 3カラム。左＝時計/ラップ/タイム/入力/タイヤ、中央＝メーター＋速度、
+     右＝ブースト計（燃料）/デルタ/残り周回/現在ラップタイム。 */
+  #main{flex:1;display:grid;grid-template-columns:1.05fr 1.55fr 1.15fr;
+    gap:1vh 1vw;padding:.8vh 1.2vw 1vh;min-height:0}
+  .col{display:flex;flex-direction:column;gap:1vh;min-width:0;min-height:0}
 
-  .speed{font-size:24vh;line-height:.82;font-weight:800;letter-spacing:-.05em;text-align:center}
-  .speed small{display:block;font-size:2.6vh;font-weight:600;color:var(--dim);
-    letter-spacing:.28em;margin-top:1vh}
+  .cell{background:var(--panel);border:1px solid var(--line);border-radius:1.2vh;
+    padding:1vh 1.3vh;display:flex;flex-direction:column;justify-content:center;
+    min-height:0;overflow:hidden}
+  .cell .k{font-size:max(1.7vh,10px);color:var(--dim);letter-spacing:.16em;
+    font-weight:600;white-space:nowrap}
+  .cell .v{font-size:max(4.4vh,19px);font-weight:800;line-height:1.05;margin-top:.2vh;
+    white-space:nowrap}
+  .cell .v.warn{color:var(--red)}
 
-  #hbars{margin-top:2.2vh;display:flex;flex-direction:column;gap:1.1vh}
+  /* ---- 左列 ---- */
+  #topL{display:flex;gap:1vw;flex:0 0 auto;height:12%}
+  #clockCell{flex:2;align-items:center;justify-content:center}
+  #clock{font-size:max(4.6vh,20px);font-weight:800;letter-spacing:.03em;line-height:1}
+  #lapCell{flex:1;align-items:center;justify-content:center;text-align:center}
+  #lapCell .v{font-size:5.4vh}
+  .colL .cell.big{flex:1}
+  .colL .cell.big .v{font-size:5vh}
+
+  #hbars{display:flex;flex-direction:column;gap:.8vh;flex:0 0 auto}
   .hbar{display:flex;align-items:center;gap:1vh}
-  .hbar span{font-size:1.7vh;font-weight:700;color:var(--dim);letter-spacing:.14em;width:4.6vh}
-  .hbar .track{flex:1;height:2.2vh;background:#12151a;border:1px solid var(--line);
+  .hbar span{font-size:max(1.6vh,9px);font-weight:700;color:var(--dim);
+    letter-spacing:.14em;width:max(4.4vh,26px)}
+  .hbar .track{flex:1;height:2vh;background:#12151a;border:1px solid var(--line);
     border-radius:.5vh;overflow:hidden}
   .hbar i{display:block;height:100%;width:0}
   #hThr{background:var(--green)} #hBrk{background:var(--red)}
 
-  /* 円弧タコメーター + ギア */
-  #meterWrap{position:relative;height:100%;display:flex;align-items:center;justify-content:center}
+  #tyres{display:grid;grid-template-columns:1fr 1fr;gap:.6vh;flex:0 0 auto}
+  .ty{height:3vh;border-radius:.6vh;background:#12151a;display:flex;
+    align-items:center;justify-content:center;font-size:max(1.9vh,11px);font-weight:800;
+    border:1px solid var(--line)}
+
+  /* ---- 中央：メーター + 速度 ---- */
+  #meterWrap{position:relative;flex:1;min-height:0;display:flex;
+    align-items:center;justify-content:center}
   #arcCv{position:absolute;inset:0;width:100%;height:100%;display:none}
   body.meter-arc #arcCv{display:block}
   #gearBox{position:relative;text-align:center;z-index:2}
-  #gear{font-size:34vh;line-height:.78;font-weight:900;letter-spacing:-.06em;transition:color .08s}
-  body.meter-bar #gear{font-size:44vh}
-  #rpmtxt{font-size:2.8vh;font-weight:800;color:var(--dim);letter-spacing:.1em;margin-top:.6vh;
+  #gear{font-size:30vh;line-height:.78;font-weight:900;letter-spacing:-.06em;
     transition:color .08s}
+  body.meter-bar #gear{font-size:34vh}
+  #rpmtxt{font-size:2.6vh;font-weight:800;color:var(--dim);letter-spacing:.1em;
+    margin-top:.6vh;transition:color .08s}
 
-  /* メーター内のチップ（ブースト / 燃料 / ERS） */
-  #chips{display:flex;gap:.9vh;justify-content:center;margin-top:1.6vh}
+  .speed{flex:0 0 auto;text-align:center;font-size:17vh;line-height:.86;
+    font-weight:800;letter-spacing:-.05em}
+  .speed small{display:block;font-size:2.2vh;font-weight:600;color:var(--dim);
+    letter-spacing:.28em;margin-top:.8vh}
+
+  /* メーター内のチップ（ターボ車で ERS も積んでいる時だけ出す） */
+  #chips{display:flex;gap:.9vh;justify-content:center;margin-top:1.2vh}
   .chip{display:none;min-width:12vh;background:rgba(13,15,18,.9);
-    border:1px solid var(--line);border-radius:.9vh;padding:.7vh .9vh;text-align:left}
+    border:1px solid var(--line);border-radius:.9vh;padding:.6vh .9vh;text-align:left}
   .chip.on{display:block}
-  .chip b{display:block;font-size:1.4vh;color:var(--dim);letter-spacing:.14em;font-weight:700}
-  .chip span{display:block;font-size:2.6vh;font-weight:800;line-height:1.2;margin-top:.1vh}
-  .chip .bar{height:.7vh;background:#12151a;border-radius:.35vh;overflow:hidden;margin-top:.6vh}
+  .chip b{display:block;font-size:1.3vh;color:var(--dim);letter-spacing:.14em;font-weight:700}
+  .chip span{display:block;font-size:2.4vh;font-weight:800;line-height:1.2}
+  .chip .bar{height:.6vh;background:#12151a;border-radius:.3vh;overflow:hidden;margin-top:.5vh}
   .chip i{display:block;height:100%;width:0;transition:width .06s linear}
-  #chBoost i{background:#ff9f0a} #chFuel i{background:var(--yellow)}
   #chErs i{background:var(--cyan)}
   #chErs i.charging{background:var(--green)}
 
-  /* 横バーモード用のブーストバー */
-  #boostBar{display:none;flex:0 0 auto;height:2.4vh;margin:.4vh .8vw 0;position:relative;
-    background:#0b0d10;border:1px solid var(--line);border-radius:.6vh;overflow:hidden}
-  body.meter-bar #boostBar.on{display:block}
-  #bbFill{position:absolute;top:0;bottom:0;left:0;width:0;background:#ff9f0a;
-    transition:width .06s linear}
-  #bbLab{position:absolute;inset:0;display:flex;align-items:center;padding-left:1vh;
-    font-size:1.5vh;font-weight:800;color:#fff;letter-spacing:.12em;text-shadow:0 1px 2px #000}
+  /* ---- 右列：ブースト計 ---- */
+  #gaugeBox{position:relative;flex:1.8;min-height:0;display:flex;
+    align-items:center;justify-content:center}
+  #gaugeCv{position:absolute;inset:0;width:100%;height:100%}
+  #gaugeTxt{position:relative;z-index:2;text-align:center}
+  #gaugeTxt b{display:block;font-size:max(1.7vh,10px);color:var(--dim);
+    letter-spacing:.2em;font-weight:700}
+  #gaugeTxt span{display:block;font-size:max(4.4vh,19px);font-weight:800;line-height:1.15;
+    margin-top:.3vh}
+  #gaugeTxt em{display:block;font-size:1.8vh;font-style:normal;color:var(--dim);
+    font-weight:700;margin-top:.2vh}
+  #fuelCell{position:absolute;right:0;bottom:0;z-index:3;min-width:12vh;
+    background:#05070a;text-align:center;padding:.7vh 1vh}
+  #fuelCell .v{font-size:3.4vh}
 
-  .stack{display:flex;flex-direction:column;gap:1.4vh;height:100%;padding:1vh 0}
-  .cell{background:var(--panel);border:1px solid var(--line);border-radius:1.2vh;
-    padding:1.3vh 1.4vh;flex:1;display:flex;flex-direction:column;justify-content:center}
-  .cell .k{font-size:1.8vh;color:var(--dim);letter-spacing:.16em;font-weight:600}
-  .cell .v{font-size:5vh;font-weight:800;line-height:1.05;margin-top:.3vh}
-  .cell .v.sm{font-size:4.4vh}
+  /* ---- 右列：デルタ ---- */
+  #deltaBox{position:relative;flex:.72;min-height:0;background:var(--panel);
+    border:1px solid var(--line);border-radius:1.2vh;overflow:hidden}
+  #deltaFill{position:absolute;bottom:0;height:.9vh;left:50%;width:0;
+    background:var(--green);transition:width .08s linear,background .1s}
+  #deltaMid{position:absolute;left:50%;bottom:0;height:.9vh;width:2px;
+    background:#3a4150;transform:translateX(-1px)}
+  #deltaTxt{position:absolute;inset:0;display:flex;align-items:center;gap:1.2vh;
+    padding:0 1.3vh}
+  #deltaTxt b{font-size:max(1.7vh,10px);color:var(--dim);letter-spacing:.16em;font-weight:600}
+  #deltaVal{font-size:max(4vh,18px);font-weight:800;color:var(--dim)}
+  .colR .cell{flex:.72}
 
-  /* ================= デルタ ================= */
-  #deltaWrap{padding:0 1.4vw .6vh;flex:0 0 auto}
-  #deltaBar{position:relative;height:3.4vh;background:#0d0f12;border:1px solid var(--line);
-    border-radius:.8vh;overflow:hidden}
-  #deltaFill{position:absolute;top:0;bottom:0;left:50%;width:0;background:var(--green);
-    transition:width .08s linear,background .1s}
-  #deltaMid{position:absolute;left:50%;top:0;bottom:0;width:2px;background:#3a4150;transform:translateX(-1px)}
-  #deltaTxt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-    font-size:2.2vh;font-weight:800;letter-spacing:.05em;text-shadow:0 1px 3px #000}
-
-  /* ================= 下段 ================= */
-  #bottom{display:grid;grid-template-columns:1fr 1fr 1fr 1.2fr;gap:1vw;
-    padding:0 1.4vw 1vh;align-items:end;flex:0 0 auto}
-  .pill{background:var(--panel);border:1px solid var(--line);border-radius:1vh;
-    padding:.7vh 1vh;text-align:center}
-  .pill .k{font-size:1.5vh;color:var(--dim);letter-spacing:.14em;font-weight:600}
-  .pill .v{font-size:2.9vh;font-weight:800;margin-top:.1vh}
-  #tyres{display:grid;grid-template-columns:1fr 1fr;gap:.5vh;width:100%}
-  .ty{height:2.6vh;border-radius:.5vh;background:#12151a;display:flex;
-    align-items:center;justify-content:center;font-size:1.6vh;font-weight:700;
-    border:1px solid var(--line)}
 
   /* ================= 状態オーバーレイ ================= */
   #status{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;
@@ -205,57 +225,63 @@
   <div id="tachBar">
     <div id="tbRed"></div><div id="tbFill"></div><div id="tbTicks"></div>
   </div>
-  <div id="boostBar"><div id="bbFill"></div><div id="bbLab">BOOST</div></div>
 
   <div id="main">
-    <div class="col">
-      <div class="speed"><span id="speed">0</span><small>KM / H</small></div>
+    <!-- ============ 左：時計 / ラップ / タイム / 入力 / タイヤ ============ -->
+    <div class="col colL">
+      <div id="topL">
+        <div class="cell" id="clockCell"><div class="v" id="clock">--:--:--</div></div>
+        <div class="cell" id="lapCell"><div class="k">LAP</div><div class="v" id="lap">1</div></div>
+      </div>
+      <div class="cell big"><div class="k">LAST</div><div class="v" id="last">--:--.---</div></div>
+      <div class="cell big"><div class="k">BEST</div><div class="v" id="best">--:--.---</div></div>
       <div id="hbars">
         <div class="hbar"><span>THR</span><div class="track"><i id="hThr"></i></div></div>
         <div class="hbar"><span>BRK</span><div class="track"><i id="hBrk"></i></div></div>
       </div>
+      <div id="tyres">
+        <div class="ty" id="ty0">--</div><div class="ty" id="ty1">--</div>
+        <div class="ty" id="ty2">--</div><div class="ty" id="ty3">--</div>
+      </div>
     </div>
 
-    <div class="col">
+    <!-- ============ 中央：タコメーター + ギア + 速度 ============ -->
+    <div class="col colC">
       <div id="meterWrap">
         <canvas id="arcCv"></canvas>
         <div id="gearBox">
           <div id="gear">N</div>
           <div id="rpmtxt">0 RPM</div>
           <div id="chips">
-            <div class="chip" id="chBoost"><b>BOOST</b><span>—</span>
-              <div class="bar"><i></i></div></div>
-            <div class="chip" id="chFuel"><b>FUEL</b><span>—</span>
-              <div class="bar"><i></i></div></div>
             <div class="chip" id="chErs"><b>ERS</b><span>—</span>
               <div class="bar"><i></i></div></div>
           </div>
         </div>
       </div>
+      <div class="speed"><span id="speed">0</span><small>KM / H</small></div>
     </div>
 
-    <div class="col stack">
-      <div class="cell"><div class="k">LAST</div><div class="v sm" id="last">--:--.---</div></div>
-      <div class="cell"><div class="k">BEST</div><div class="v sm" id="best">--:--.---</div></div>
-      <div class="cell"><div class="k">CURRENT</div><div class="v sm" style="color:var(--cyan)" id="cur">--:--.---</div></div>
-    </div>
-  </div>
+    <!-- ============ 右：ブースト計 / デルタ / 残り周回 / 現在タイム ============ -->
+    <div class="col colR">
+      <div id="gaugeBox">
+        <canvas id="gaugeCv"></canvas>
+        <div id="gaugeTxt">
+          <b id="gaugeLab">BOOST</b><span id="gaugeVal">—</span><em id="gaugeSub"></em>
+        </div>
+        <div class="cell" id="fuelCell">
+          <div class="k">FUEL L</div><div class="v" id="fuel">--</div>
+        </div>
+      </div>
 
-  <div id="deltaWrap">
-    <div id="deltaBar">
-      <div id="deltaFill"></div><div id="deltaMid"></div>
-      <div id="deltaTxt">DELTA --.---</div>
-    </div>
-  </div>
+      <div id="deltaBox">
+        <div id="deltaFill"></div><div id="deltaMid"></div>
+        <div id="deltaTxt"><b>DELTA</b><span id="deltaVal">--.---</span></div>
+      </div>
 
-  <div id="bottom">
-    <div class="pill"><div class="k">LAP</div><div class="v" id="lap">1</div></div>
-    <div class="pill"><div class="k">FUEL L</div><div class="v" id="fuel">--</div></div>
-    <div class="pill"><div class="k">LAPS LEFT</div><div class="v" id="lapsleft">--</div></div>
-    <div class="pill" style="padding:.5vh"><div id="tyres">
-      <div class="ty" id="ty0">--</div><div class="ty" id="ty1">--</div>
-      <div class="ty" id="ty2">--</div><div class="ty" id="ty3">--</div>
-    </div></div>
+      <div class="cell"><div class="k">LAPS LEFT</div><div class="v" id="lapsleft">--</div></div>
+      <div class="cell"><div class="k">CURRENT</div>
+        <div class="v" style="color:var(--cyan)" id="cur">--:--.---</div></div>
+    </div>
   </div>
 </div>
 
@@ -384,16 +410,15 @@
   const el = {
     speed:$('speed'), gear:$('gear'), rpm:$('rpmtxt'),
     last:$('last'), best:$('best'), cur:$('cur'),
-    dFill:$('deltaFill'), dTxt:$('deltaTxt'),
-    lap:$('lap'), fuel:$('fuel'), lapsleft:$('lapsleft'),
+    dFill:$('deltaFill'), dVal:$('deltaVal'),
+    lap:$('lap'), fuel:$('fuel'), lapsleft:$('lapsleft'), clock:$('clock'),
     thr:$('hThr'), brk:$('hBrk'),
     ty:[$('ty0'),$('ty1'),$('ty2'),$('ty3')],
     status:$('status'), statusMsg:$('statusMsg'),
     statusH:document.querySelector('#status h1'),
     tbFill:$('tbFill'), tbRed:$('tbRed'), tbTicks:$('tbTicks'),
-    arc:$('arcCv'), glow:$('glow'),
-    chBoost:$('chBoost'), chFuel:$('chFuel'), chErs:$('chErs'),
-    boostBar:$('boostBar'), bbFill:$('bbFill'), bbLab:$('bbLab')
+    arc:$('arcCv'), glow:$('glow'), chErs:$('chErs'),
+    gauge:$('gaugeCv'), gLab:$('gaugeLab'), gVal:$('gaugeVal'), gSub:$('gaugeSub')
   };
   const chipVal = el => el.querySelector('span');
   const chipBar = el => el.querySelector('i');
@@ -444,6 +469,82 @@
       ratio: full > 0 ? Math.max(0, Math.min(1, bar / full)) : 0
     };
   }
+  /* KERS / ERS。AC には MGU 単体の値が無く、この ERS 系がその役割を担う。 */
+  function ersInfo(d){
+    const k = d.kers || null, e = d.ers || null;
+    const showKers = !!(d.hasKERS && k);
+    const showErs  = !!(d.hasERS && (e || k));
+    if (!showKers && !showErs) return {has:false};
+    let pct = null;
+    if (showKers && typeof k.charge === 'number'){
+      pct = Math.max(0, Math.min(100, k.charge * 100));
+    } else if (k && e && e.maxJ > 0){
+      pct = Math.max(0, Math.min(100, k.kj * 1000 / e.maxJ * 100));
+    } else if (k && k.maxJ > 0){
+      pct = Math.max(0, Math.min(100, k.kj * 1000 / k.maxJ * 100));
+    }
+    return {
+      has: true,
+      label: (showKers && !d.hasERS) ? 'KERS' : 'ERS',
+      pct: pct,
+      charging: !!(e && e.isCharging),
+      deploying: !!(k && k.input > 0.02),
+      level: (e && e.powerLevels > 0) ? ('P' + e.power + ' / R' + e.recovery) : ''
+    };
+  }
+
+  /* 右側の丸いメーターに何を出すか。
+     ターボ搭載車 → ブースト圧、無ければ ERS/KERS、どちらも無ければ回転数。 */
+  function gaugeInfo(d, boost, rpm, inRed){
+    if (boost.has)
+      return {lab:'BOOST', val: boost.bar.toFixed(2), sub:'bar',
+              ratio: boost.ratio, color:'#ff9f0a'};
+    const e = ersInfo(d);
+    if (e.has)
+      return {lab: e.label, val: (e.pct == null ? '—' : e.pct.toFixed(0) + ' %'),
+              sub: e.level, ratio: (e.pct || 0) / 100,
+              color: e.deploying ? '#00e5ff' : (e.charging ? '#25d366' : '#2b6bff')};
+    return {lab:'RPM', val: Math.round(rpm).toLocaleString(), sub:'rpm',
+            ratio: maxRpm > 0 ? Math.max(0, Math.min(1, rpm / maxRpm)) : 0,
+            color: inRed ? '#ff2d2d' : '#00e5ff'};
+  }
+
+  function drawGauge(g){
+    const cv = el.gauge;
+    const rect = cv.getBoundingClientRect();
+    if (rect.width < 4 || rect.height < 4) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.max(1, Math.round(rect.width*dpr)), h = Math.max(1, Math.round(rect.height*dpr));
+    if (cv.width !== w || cv.height !== h){ cv.width = w; cv.height = h; }
+    const c = cv.getContext('2d');
+    c.clearRect(0,0,w,h);
+
+    const cx = w/2, cy = h/2;
+    const lw = Math.max(5, Math.min(w,h) * 0.10);
+    const R = Math.min(w,h)/2 - lw/2 - 3*dpr;
+    if (R <= 0) return;
+    const a = v => ARC_START + ARC_SWEEP * Math.max(0, Math.min(1, v));
+
+    c.lineCap = 'butt';
+    // 目盛り（25%ごと）
+    c.lineWidth = 1.5*dpr; c.strokeStyle = 'rgba(255,255,255,.16)';
+    for (let i = 1; i < 4; i++){
+      const ang = a(i/4), r1 = R + lw/2, r0 = R + lw/2 - lw*0.4;
+      c.beginPath();
+      c.moveTo(cx + Math.cos(ang)*r0, cy + Math.sin(ang)*r0);
+      c.lineTo(cx + Math.cos(ang)*r1, cy + Math.sin(ang)*r1);
+      c.stroke();
+    }
+    c.lineWidth = lw; c.strokeStyle = '#14181e';
+    c.beginPath(); c.arc(cx, cy, R, a(0), a(1)); c.stroke();
+    if (g.ratio > 0.002){
+      c.strokeStyle = g.color;
+      c.shadowColor = g.color; c.shadowBlur = lw * 0.7;
+      c.beginPath(); c.arc(cx, cy, R, a(0), a(g.ratio)); c.stroke();
+      c.shadowBlur = 0;
+    }
+  }
+
   let shiftArmed = true;      // シフト音の二重再生を防ぐラッチ
   let redLatched = false;     // レッドゾーン表示のちらつき防止ラッチ
 
@@ -451,7 +552,7 @@
   const ARC_START = Math.PI * 0.75;      // 135°
   const ARC_SWEEP = Math.PI * 1.5;       // 270°
 
-  function drawArc(rpm, th, inRed, boost){
+  function drawArc(rpm, th, inRed){
     const cv = el.arc;
     const rect = cv.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
@@ -461,7 +562,7 @@
     c.clearRect(0,0,w,h);
 
     const cx = w/2, cy = h/2;
-    const lw = Math.max(6, Math.min(w,h) * 0.085);
+    const lw = Math.max(6, Math.min(w,h) * 0.075);
     const R = Math.min(w, h)/2 - lw/2 - 2*dpr;
     if (R <= 0) return;
 
@@ -510,21 +611,6 @@
       c.shadowBlur = 0;
     }
 
-    /* 内側リング = ターボブースト */
-    if (boost && boost.has){
-      const rIn = R - lw * 1.35, lwIn = lw * 0.42;
-      if (rIn > lwIn){
-        c.lineWidth = lwIn;
-        c.strokeStyle = '#15181d';
-        c.beginPath(); c.arc(cx, cy, rIn, a(0), a(1)); c.stroke();
-        if (boost.ratio > 0.002){
-          c.strokeStyle = '#ff9f0a';
-          c.shadowColor = 'rgba(255,159,10,.6)'; c.shadowBlur = lwIn * 0.9;
-          c.beginPath(); c.arc(cx, cy, rIn, a(0), a(boost.ratio)); c.stroke();
-          c.shadowBlur = 0;
-        }
-      }
-    }
   }
 
   /* ===================== 横バー ===================== */
@@ -548,7 +634,7 @@
   }
 
   /* ===================== 描画ループ ===================== */
-  let latest = null, dirty = false;
+  let latest = null, dirty = false, lastSec = -1;
 
   function render(){
     requestAnimationFrame(render);
@@ -599,10 +685,16 @@
 
     /* --- メーター --- */
     const boost = boostInfo(d);
-    if (cfg.meter === 'arc') drawArc(rpm, th, inRed, boost);
+    if (cfg.meter === 'arc') drawArc(rpm, th, inRed);
     else updateBar(rpm, th, inRed);
 
-    /* --- ブースト / 燃料 / ERS のチップ --- */
+    /* --- 右の丸いメーター（ブースト / ERS / 回転数）とチップ --- */
+    const g = gaugeInfo(d, boost, rpm, inRed);
+    drawGauge(g);
+    el.gLab.textContent = g.lab;
+    el.gVal.textContent = g.val;
+    el.gVal.style.color = g.color;
+    el.gSub.textContent = g.sub || '';
     updateChips(d, boost);
 
     /* --- 画面全体の発光（レッドゾーンで強まり、シフトポイントで点滅） --- */
@@ -615,6 +707,17 @@
     } else {
       el.glow.style.opacity = '0';
       el.glow.classList.remove('flash');
+    }
+
+    /* --- 時計（端末の時刻。秒が変わった時だけ書き換える） --- */
+    const now = new Date();
+    const sec = now.getSeconds();
+    if (sec !== lastSec){
+      lastSec = sec;
+      el.clock.textContent =
+        String(now.getHours()).padStart(2,'0') + ':' +
+        String(now.getMinutes()).padStart(2,'0') + ':' +
+        String(sec).padStart(2,'0');
     }
 
     /* --- 数値 --- */
@@ -633,18 +736,18 @@
     /* --- デルタ --- */
     if (d.delta == null){
       el.dFill.style.width = '0';
-      el.dTxt.textContent = 'DELTA --.---';
-      el.dTxt.style.color = '#7c8595';
+      el.dVal.textContent = '--.---';
+      el.dVal.style.color = '#7c8595';
     } else {
       const v = Math.max(-3, Math.min(3, d.delta)), pct = Math.abs(v)/3*50;
       el.dFill.style.width = pct + '%';
       el.dFill.style.left = v < 0 ? (50-pct)+'%' : '50%';
       el.dFill.style.background = v < 0 ? '#25d366' : '#ff2d2d';
-      el.dTxt.textContent = (d.delta>=0?'+':'') + d.delta.toFixed(3);
-      el.dTxt.style.color = '#fff';
+      el.dVal.textContent = (d.delta>=0?'+':'') + d.delta.toFixed(3);
+      el.dVal.style.color = v < 0 ? '#25d366' : '#ff2d2d';
     }
 
-    /* --- 下段 --- */
+    /* --- ラップ / 燃料 / 残り周回 --- */
     el.lap.textContent = d.totalLaps > 0 ? d.lap + '/' + d.totalLaps : d.lap;
     el.fuel.textContent = d.fuel != null ? d.fuel.toFixed(1) : '--';
     if (d.lapsLeft != null){
@@ -663,60 +766,23 @@
       el.ty[i].style.color = (t > 68 && t < 105) ? '#04120a' : '#fff';
     }
   }
+  /* ターボ車で ERS も積んでいる場合だけ、ギアの下に小さく出す
+     （丸いメーターはブースト圧に使われているため） */
   function updateChips(d, boost){
-    /* ターボ */
-    el.chBoost.classList.toggle('on', boost.has);
-    el.boostBar.classList.toggle('on', boost.has);
-    if (boost.has){
-      chipVal(el.chBoost).textContent = boost.bar.toFixed(2) + ' bar';
-      chipBar(el.chBoost).style.width = (boost.ratio * 100) + '%';
-      el.bbFill.style.width = (boost.ratio * 100) + '%';
-      el.bbLab.textContent = 'BOOST ' + boost.bar.toFixed(2) + ' bar';
-    }
-
-    /* 燃料 */
-    const hasFuel = (typeof d.fuel === 'number' && isFinite(d.fuel));
-    el.chFuel.classList.toggle('on', hasFuel);
-    if (hasFuel){
-      const v = chipVal(el.chFuel);
-      v.textContent = d.fuel.toFixed(1) + ' L';
-      const low = (d.lapsLeft != null && d.lapsLeft < 2);
-      v.style.color = low ? '#ff2d2d' : '';
-      const frac = d.maxFuel > 0 ? Math.max(0, Math.min(1, d.fuel / d.maxFuel)) : 0;
-      const bar = chipBar(el.chFuel);
-      bar.style.width = (frac * 100) + '%';
-      bar.style.background = low ? '#ff2d2d' : '#ffcc00';
-      el.chFuel.querySelector('b').textContent =
-        (d.lapsLeft != null) ? 'FUEL · 残り' + d.lapsLeft.toFixed(1) + '周' : 'FUEL';
-    }
-
-    /* KERS / ERS（AC には MGU 単体の値は無く、この ERS 系がその役割） */
-    const k = d.kers || null, e = d.ers || null;
-    const showKers = !!(d.hasKERS && k);
-    const showErs = !!(d.hasERS && (e || k));
-    el.chErs.classList.toggle('on', showKers || showErs);
-    if (showKers || showErs){
-      const lab = el.chErs.querySelector('b');
-      const val = chipVal(el.chErs);
-      const bar = chipBar(el.chErs);
-      let pct = null;
-      if (showKers && typeof k.charge === 'number'){
-        pct = Math.max(0, Math.min(100, k.charge * 100));
-      } else if (k && e && e.maxJ > 0){
-        pct = Math.max(0, Math.min(100, k.kj * 1000 / e.maxJ * 100));
-      } else if (k && k.maxJ > 0){
-        pct = Math.max(0, Math.min(100, k.kj * 1000 / k.maxJ * 100));
-      }
-      const charging = !!(e && e.isCharging);
-      const deploying = !!(k && k.input > 0.02);
-      lab.textContent = (showKers && !d.hasERS) ? 'KERS' : 'ERS';
-      let txt = (pct == null) ? '—' : pct.toFixed(0) + ' %';
-      if (e && e.powerLevels > 0) txt += '  P' + e.power;
-      val.textContent = txt;
-      val.style.color = deploying ? '#00e5ff' : (charging ? '#25d366' : '');
-      bar.style.width = (pct == null ? 0 : pct) + '%';
-      bar.classList.toggle('charging', charging && !deploying);
-    }
+    const e = ersInfo(d);
+    const show = boost.has && e.has;
+    el.chErs.classList.toggle('on', show);
+    if (!show) return;
+    const lab = el.chErs.querySelector('b');
+    const val = chipVal(el.chErs);
+    const bar = chipBar(el.chErs);
+    lab.textContent = e.label;
+    let txt = (e.pct == null) ? '—' : e.pct.toFixed(0) + ' %';
+    if (e.level) txt += '  ' + e.level;
+    val.textContent = txt;
+    val.style.color = e.deploying ? '#00e5ff' : (e.charging ? '#25d366' : '');
+    bar.style.width = (e.pct == null ? 0 : e.pct) + '%';
+    bar.classList.toggle('charging', e.charging && !e.deploying);
   }
 
   function tyreColor(t){

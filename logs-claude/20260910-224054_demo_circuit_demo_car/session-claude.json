@@ -1,0 +1,11 @@
+{
+ "id": "20260910-224054_demo_circuit_demo_car",
+ "started": "2026-09-10 22:40:54",
+ "track": "demo_circuit",
+ "layout": "",
+ "car": "DEMO_CAR",
+ "driver": "Demo Driver",
+ "session": "PRACTICE",
+ "rate": 60,
+ "laps": []
+}
